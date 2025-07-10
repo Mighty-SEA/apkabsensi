@@ -13,6 +13,7 @@ class ApiMock {
           'name': 'Test User',
           'role': 'guru',
           'token': 'mock-jwt-token-12345',
+          'guruId': 'guru1', // ID guru untuk keperluan absensi
         }
       };
     } else {

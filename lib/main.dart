@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  // Inisialisasi locale untuk bahasa Indonesia
+  initializeDateFormatting('id_ID', null).then((_) {
+    Intl.defaultLocale = 'id_ID';
+    runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {

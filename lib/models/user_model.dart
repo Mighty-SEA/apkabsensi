@@ -1,25 +1,28 @@
 class User {
   final String id;
   final String username;
-  final String token;
-  final String role;
   final String? name;
+  final String? role;
+  final String token;
+  final String? guruId; // ID guru untuk keperluan absensi
 
   User({
     required this.id,
     required this.username,
-    required this.token,
-    required this.role,
     this.name,
+    this.role,
+    required this.token,
+    this.guruId,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] ?? '',
       username: json['username'] ?? '',
-      token: json['token'] ?? '',
-      role: json['role'] ?? 'user',
       name: json['name'],
+      role: json['role'],
+      token: json['token'] ?? '',
+      guruId: json['guruId']?.toString(),
     );
   }
 
@@ -27,9 +30,10 @@ class User {
     return {
       'id': id,
       'username': username,
-      'token': token,
-      'role': role,
       'name': name,
+      'role': role,
+      'token': token,
+      'guruId': guruId,
     };
   }
 } 

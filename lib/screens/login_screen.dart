@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  String _errorMessage = '';
 
   @override
   void dispose() {
@@ -24,6 +25,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _login() async {
+    setState(() {
+      _errorMessage = '';
+    });
+
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
@@ -37,14 +42,37 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
       } else if (mounted) {
+        setState(() {
+          _errorMessage = authProvider.errorMessage;
+        });
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.errorMessage),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
           ),
         );
       }
     }
+  }
+
+  // Fungsi helper untuk mencoba terhubung ke server dan cek URL
+  void _checkServerConnection() async {
+    setState(() {
+      _errorMessage = 'Memeriksa koneksi ke server...';
+    });
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final result = await authProvider.checkServerConnection();
+    
+    setState(() {
+      if (result['success']) {
+        _errorMessage = 'Koneksi ke server berhasil! Silakan coba login.';
+      } else {
+        _errorMessage = result['message'];
+      }
+    });
   }
 
   @override
@@ -77,7 +105,66 @@ class _LoginScreenState extends State<LoginScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 32),
+                  
+                  // Pesan error
+                  if (_errorMessage.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: _errorMessage.contains('berhasil') 
+                            ? Colors.green.withOpacity(0.1) 
+                            : Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _errorMessage.contains('berhasil') 
+                              ? Colors.green 
+                              : Colors.red,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _errorMessage.contains('berhasil') 
+                                    ? Icons.check_circle 
+                                    : Icons.error,
+                                color: _errorMessage.contains('berhasil') 
+                                    ? Colors.green 
+                                    : Colors.red,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage.contains('berhasil') 
+                                      ? 'Status Server' 
+                                      : 'Error',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: _errorMessage.contains('berhasil') 
+                                        ? Colors.green 
+                                        : Colors.red,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(_errorMessage),
+                          if (!_errorMessage.contains('berhasil'))
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: _checkServerConnection,
+                                child: const Text('Periksa Koneksi'),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   
                   // Field username
                   TextFormField(

@@ -66,6 +66,24 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
   }
+  
+  // Memeriksa koneksi ke server
+  Future<Map<String, dynamic>> checkServerConnection() async {
+    _isLoading = true;
+    notifyListeners();
+    
+    try {
+      final result = await _apiService.checkServerConnection();
+      _isLoading = false;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      _errorMessage = 'Terjadi kesalahan saat memeriksa koneksi: $e';
+      _isLoading = false;
+      notifyListeners();
+      return {'success': false, 'message': _errorMessage};
+    }
+  }
 
   // Logout
   Future<void> logout() async {

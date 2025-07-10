@@ -5,15 +5,16 @@ import '../models/user_model.dart';
 import '../models/guru_model.dart';
 import '../models/absensi_model.dart';
 import '../utils/api_mock.dart';
+import 'package:intl/intl.dart';
 
 class ApiService {
   // Ganti dengan URL API Anda
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
-  // Gunakan localhost atau IP komputer Anda untuk perangkat fisik
-  static const String baseUrl = 'http://192.168.12.99:3000/api'; // atau http://localhost:3000/api atau IP lainnya
+  // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
+  static const String baseUrl = 'http://192.168.100.9:3000/api'; // Menggunakan 10.0.2.2 untuk emulator Android
   
   // Flag untuk menggunakan mock data jika server tidak tersedia
-  static const bool useMockData = true;
+  static const bool useMockData = false;
   
   // Endpoint untuk autentikasi
   static const String loginEndpoint = '/auth/login';
@@ -74,6 +75,7 @@ class ApiService {
           token: data['token'],
           role: data['role'] ?? 'user',
           name: data['name'],
+          guruId: data['guruId']?.toString(),
         );
         await saveUser(user);
       }
@@ -83,6 +85,10 @@ class ApiService {
 
     // Menggunakan API jika tidak menggunakan mock data
     try {
+      print('Mencoba login ke: $baseUrl$loginEndpoint');
+      print('Username: $username');
+      print('Password: ${"*" * password.length}');
+      
       final response = await http.post(
         Uri.parse('$baseUrl$loginEndpoint'),
         headers: {'Content-Type': 'application/json'},
@@ -92,7 +98,16 @@ class ApiService {
         }),
       );
 
-      final responseData = jsonDecode(response.body);
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      final Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        print('Error parsing JSON: $e');
+        return {'success': false, 'message': 'Format respons tidak valid: ${response.body}'};
+      }
       
       if (response.statusCode == 200) {
         if (responseData['token'] != null) {
@@ -100,24 +115,34 @@ class ApiService {
           await saveToken(responseData['token']);
           
           // Buat objek User dan simpan
+          final userData = responseData['user'] ?? responseData;
           final user = User(
-            id: responseData['id'] ?? '',
+            id: (userData['id'] ?? '').toString(),
             username: username,
             token: responseData['token'],
-            role: responseData['role'] ?? 'user',
-            name: responseData['name'],
+            role: userData['role'] ?? 'user',
+            name: userData['name'],
+            guruId: userData['guruId']?.toString() ?? userData['guru']?['id']?.toString(),
           );
           await saveUser(user);
+          return {'success': true, 'data': responseData};
+        } else {
+          return {'success': false, 'message': 'Token tidak ditemukan dalam respons'};
         }
-        return {'success': true, 'data': responseData};
       } else {
-        return {
-          'success': false,
-          'message': responseData['message'] ?? 'Login gagal',
-        };
+        final errorMsg = responseData['error'] ?? responseData['message'] ?? 'Login gagal (${response.statusCode})';
+        return {'success': false, 'message': errorMsg};
       }
     } catch (e) {
-      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+      print('Error saat login: $e');
+      String errorDetail = e.toString();
+      if (errorDetail.contains('SocketException')) {
+        return {'success': false, 'message': 'Tidak dapat terhubung ke server. Pastikan server berjalan dan URL API benar.'};
+      } else if (errorDetail.contains('Connection refused')) {
+        return {'success': false, 'message': 'Koneksi ditolak. Server mungkin tidak berjalan atau alamat IP/port salah.'};
+      } else {
+        return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+      }
     }
   }
 
@@ -253,26 +278,578 @@ class ApiService {
 
   // Mendapatkan data guru
   Future<Map<String, dynamic>> getGuruData() async {
-    return fetchWithToken(guruEndpoint);
+    // Jika menggunakan mock data
+    if (useMockData) {
+      return ApiMock.mockGuruData();
+    }
+
+    // Jika menggunakan API
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      print('Mengambil data guru dari: $baseUrl$guruEndpoint');
+      final response = await http.get(
+        Uri.parse('$baseUrl$guruEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200) {
+        // Backend mungkin mengembalikan data dalam format yang berbeda
+        // Bisa array langsung, atau mungkin dalam objek dengan property tertentu
+        List<dynamic> guruList = [];
+        
+        if (responseData is List) {
+          // Jika respons langsung berupa array
+          guruList = responseData;
+        } else if (responseData is Map) {
+          // Jika respons berupa objek, coba cari property yang berisi list guru
+          if (responseData.containsKey('guru')) {
+            guruList = responseData['guru'] as List;
+          } else if (responseData.containsKey('data')) {
+            final data = responseData['data'];
+            if (data is List) {
+              guruList = data;
+            } else {
+              return {'success': false, 'message': 'Format data guru tidak valid'};
+            }
+          } else {
+            // Coba cari property pertama yang berisi array
+            for (var key in responseData.keys) {
+              final value = responseData[key];
+              if (value is List) {
+                guruList = value;
+                break;
+              }
+            }
+          }
+        }
+        
+        return {'success': true, 'data': guruList};
+      } else {
+        return {
+          'success': false,
+          'message': responseData['error'] ?? responseData['message'] ?? 'Gagal mengambil data guru',
+        };
+      }
+    } catch (e) {
+      print('Error saat mengambil data guru: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
   }
 
   // Verifikasi token
   Future<Map<String, dynamic>> testToken() async {
     return fetchWithToken(testTokenEndpoint);
   }
+  
+  // Memeriksa koneksi ke server
+  Future<Map<String, dynamic>> checkServerConnection() async {
+    try {
+      // Ambil URL server dari baseUrl
+      final uri = Uri.parse(baseUrl);
+      final serverUrl = '${uri.scheme}://${uri.host}:${uri.port}';
+      
+      print('Memeriksa koneksi ke server: $serverUrl');
+      
+      // Coba melakukan ping ke server
+      final response = await http.get(
+        Uri.parse('$serverUrl/api/test-token'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 5));
+      
+      print('Status respons: ${response.statusCode}');
+      
+      if (response.statusCode == 401) {
+        // Status 401 menandakan server berjalan tapi kita tidak terautentikasi
+        // Ini hasil yang diharapkan karena kita tidak menyediakan token
+        return {'success': true, 'message': 'Server merespons dengan benar (${response.statusCode})'};
+      } else if (response.statusCode >= 200 && response.statusCode < 500) {
+        // Status 2xx-4xx menandakan server merespons
+        return {'success': true, 'message': 'Server merespons dengan status ${response.statusCode}'};
+      } else {
+        // Status 5xx menandakan server error
+        return {'success': false, 'message': 'Server merespons tetapi terjadi error (${response.statusCode})'};
+      }
+    } catch (e) {
+      print('Error saat memeriksa koneksi: $e');
+      String errorDetail = e.toString();
+      
+      if (errorDetail.contains('SocketException')) {
+        return {
+          'success': false, 
+          'message': 'Tidak dapat terhubung ke server. Periksa URL API: $baseUrl\n\nDetail: Server tidak merespons atau alamat tidak dapat dijangkau.'
+        };
+      } else if (errorDetail.contains('Connection refused')) {
+        return {
+          'success': false, 
+          'message': 'Koneksi ditolak. Server mungkin tidak berjalan di alamat: $baseUrl'
+        };
+      } else if (errorDetail.contains('timed out')) {
+        return {
+          'success': false, 
+          'message': 'Koneksi timeout. Server mungkin lambat atau tidak merespons: $baseUrl'
+        };
+      } else {
+        return {'success': false, 'message': 'Terjadi kesalahan saat memeriksa koneksi: $e'};
+      }
+    }
+  }
 
   // Mendapatkan data absensi
   Future<Map<String, dynamic>> getAbsensiData() async {
-    return fetchWithToken(absensiEndpoint);
+    // Jika menggunakan mock data
+    if (useMockData) {
+      return ApiMock.mockAbsensiData();
+    }
+
+    // Jika menggunakan API
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+      
+      final user = await getUser();
+      if (user == null) {
+        return {'success': false, 'message': 'Data user tidak tersedia'};
+      }
+      
+      // Filter absensi berdasarkan guruId jika role adalah GURU
+      String endpoint = absensiEndpoint;
+      if (user.role?.toUpperCase() == 'GURU' && user.guruId != null) {
+        endpoint += '?guruId=${user.guruId}';
+      }
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl$endpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 200) {
+        // Backend mengembalikan data dalam format { absensi: [] }
+        final absensiList = responseData['absensi'] ?? [];
+        
+        // Transform data untuk sesuai dengan format yang diharapkan frontend
+        final transformedData = absensiList.map((item) {
+          // Dapatkan nama guru dari relasi
+          String namaGuru = '';
+          if (item['guru'] != null) {
+            namaGuru = item['guru']['nama'] ?? '';
+          }
+          
+          // Format tanggal dan waktu
+          String tanggal = '';
+          String jamMasuk = '';
+          String jamKeluar = '';
+          
+          if (item['tanggal'] != null) {
+            final date = DateTime.parse(item['tanggal']);
+            tanggal = DateFormat('yyyy-MM-dd').format(date);
+          }
+          
+          if (item['jamMasuk'] != null) {
+            final masuk = DateTime.parse(item['jamMasuk']);
+            jamMasuk = DateFormat('HH:mm:ss').format(masuk);
+          }
+          
+          if (item['jamKeluar'] != null) {
+            final keluar = DateTime.parse(item['jamKeluar']);
+            jamKeluar = DateFormat('HH:mm:ss').format(keluar);
+          }
+          
+          // Return format yang sesuai dengan yang diharapkan
+          return {
+            'id': item['id'].toString(),
+            'guruId': item['guruId'].toString(),
+            'namaGuru': namaGuru,
+            'tanggal': tanggal,
+            'jamMasuk': jamMasuk,
+            'jamKeluar': jamKeluar,
+            'status': item['status'].toLowerCase(),
+            'keterangan': item['keterangan'] ?? '',
+          };
+        }).toList();
+        
+        return {'success': true, 'data': transformedData};
+      } else {
+        return {
+          'success': false,
+          'message': responseData['error'] ?? 'Gagal memuat data absensi',
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
   }
 
   // Tambah absensi baru
   Future<Map<String, dynamic>> createAbsensi(Map<String, dynamic> absensiData) async {
-    return postWithToken(absensiEndpoint, absensiData);
+    // Jika menggunakan mock data
+    if (useMockData) {
+      return ApiMock.mockCreateAbsensi(absensiData);
+    }
+
+    // Jika menggunakan API
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      print('Mengirim data absensi ke: $baseUrl$absensiEndpoint');
+      print('Data absensi: $absensiData');
+      
+      // Pastikan guruId dalam bentuk integer
+      var dataToSend = Map<String, dynamic>.from(absensiData);
+      if (dataToSend.containsKey('guruId')) {
+        // Jika sudah integer, tetap gunakan nilai asli
+        if (dataToSend['guruId'] is int) {
+          print('GuruId sudah dalam bentuk integer: ${dataToSend['guruId']}');
+        } 
+        // Jika string, convert ke integer
+        else if (dataToSend['guruId'] is String) {
+          try {
+            dataToSend['guruId'] = int.parse(dataToSend['guruId']);
+            print('GuruId dikonversi ke integer: ${dataToSend['guruId']}');
+          } catch (e) {
+            print('Error parsing guruId: ${dataToSend['guruId']} - $e');
+            return {
+              'success': false,
+              'message': 'ID Guru tidak valid: ${dataToSend['guruId']}'
+            };
+          }
+        }
+      } else {
+        print('Data tidak memiliki field guruId!');
+        return {
+          'success': false,
+          'message': 'Data absensi tidak memiliki ID guru'
+        };
+      }
+      
+      // Pastikan field wajib lainnya
+      if (!dataToSend.containsKey('status') || dataToSend['status'] == null) {
+        dataToSend['status'] = 'HADIR';
+      }
+      
+      if (!dataToSend.containsKey('jamMasuk') || dataToSend['jamMasuk'] == null) {
+        dataToSend['jamMasuk'] = DateTime.now().toIso8601String();
+      }
+      
+      // Pastikan field opsional memiliki nilai default
+      if (!dataToSend.containsKey('keterangan') || dataToSend['keterangan'] == null) {
+        dataToSend['keterangan'] = '';
+      }
+      
+      if (!dataToSend.containsKey('longitude') || dataToSend['longitude'] == null) {
+        dataToSend['longitude'] = 0.0;
+      }
+      
+      if (!dataToSend.containsKey('latitude') || dataToSend['latitude'] == null) {
+        dataToSend['latitude'] = 0.0;
+      }
+      
+      // Format ulang data untuk memastikan konsistensi
+      final finalData = {
+        'guruId': dataToSend['guruId'],
+        'status': dataToSend['status'].toString().toUpperCase(),
+        'jamMasuk': dataToSend['jamMasuk'],
+        'keterangan': dataToSend['keterangan'],
+        'longitude': dataToSend['longitude'],
+        'latitude': dataToSend['latitude'],
+      };
+      
+      print('Data akhir yang dikirim: $finalData');
+
+      final response = await http.post(
+        Uri.parse('$baseUrl$absensiEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(finalData),
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      try {
+        final responseData = jsonDecode(response.body);
+        
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          return {
+            'success': true, 
+            'data': responseData['absensi'],
+            'message': responseData['message'] ?? 'Absensi berhasil ditambahkan'
+          };
+        } else {
+          final errorMessage = responseData['error'] ?? 
+                             responseData['message'] ?? 
+                             'Gagal menambahkan absensi: ${response.statusCode}';
+          return {
+            'success': false,
+            'message': errorMessage,
+          };
+        }
+      } catch (e) {
+        print('Error parsing response: $e');
+        return {
+          'success': false,
+          'message': 'Format respons tidak valid: ${response.body}',
+        };
+      }
+    } catch (e) {
+      print('Error saat menambahkan absensi: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
   }
 
   // Update absensi (misalnya untuk checkout)
   Future<Map<String, dynamic>> updateAbsensi(String absensiId, Map<String, dynamic> absensiData) async {
-    return putWithToken('$absensiEndpoint/$absensiId', absensiData);
+    // Jika menggunakan mock data
+    if (useMockData) {
+      return {'success': true, 'data': {'message': 'Absensi berhasil diupdate (mock)'}};
+    }
+
+    // Jika menggunakan API
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      print('Mengirim update absensi ke: $baseUrl$absensiEndpoint/$absensiId');
+      print('Data update: $absensiData');
+
+      // Pastikan format data yang benar
+      var dataToSend = Map<String, dynamic>.from(absensiData);
+      
+      // Pastikan format tanggal yang benar untuk jamKeluar
+      if (dataToSend.containsKey('jamKeluar')) {
+        if (dataToSend['jamKeluar'] is DateTime) {
+          dataToSend['jamKeluar'] = dataToSend['jamKeluar'].toIso8601String();
+        } else if (dataToSend['jamKeluar'] is String) {
+          // Pastikan string dalam format ISO
+          try {
+            final date = DateTime.parse(dataToSend['jamKeluar']);
+            dataToSend['jamKeluar'] = date.toIso8601String();
+          } catch (e) {
+            print('Format jamKeluar tidak valid: ${dataToSend['jamKeluar']}');
+            // Gunakan waktu saat ini jika format tidak valid
+            dataToSend['jamKeluar'] = DateTime.now().toIso8601String();
+          }
+        } else if (dataToSend['jamKeluar'] == null) {
+          // Gunakan waktu saat ini jika null
+          dataToSend['jamKeluar'] = DateTime.now().toIso8601String();
+        }
+      }
+      
+      print('Data akhir yang dikirim: $dataToSend');
+
+      final response = await http.put(
+        Uri.parse('$baseUrl$absensiEndpoint/$absensiId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(dataToSend),
+      );
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      try {
+        final responseData = jsonDecode(response.body);
+        
+        if (response.statusCode == 200) {
+          return {
+            'success': true, 
+            'data': responseData['absensi'],
+            'message': responseData['message'] ?? 'Absensi berhasil diupdate'
+          };
+        } else {
+          final errorMessage = responseData['error'] ?? 
+                             responseData['message'] ?? 
+                             'Gagal mengupdate absensi: ${response.statusCode}';
+          return {
+            'success': false,
+            'message': errorMessage,
+          };
+        }
+      } catch (e) {
+        print('Error parsing response: $e');
+        return {
+          'success': false,
+          'message': 'Format respons tidak valid: ${response.body}',
+        };
+      }
+    } catch (e) {
+      print('Error saat mengupdate absensi: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Mendapatkan rekap absensi bulanan untuk user yang login
+  Future<Map<String, dynamic>> getAbsensiMonthlyReport() async {
+    try {
+      final user = await getUser();
+      if (user == null || user.guruId == null) {
+        return {'success': false, 'message': 'Data user tidak tersedia'};
+      }
+      
+      // Dapatkan data absensi user
+      final absensiResult = await getAbsensiData();
+      if (!absensiResult['success']) {
+        return absensiResult; // Return error jika gagal mendapatkan data absensi
+      }
+      
+      final absensiList = absensiResult['data'] as List;
+      
+      // Jika tidak ada data absensi
+      if (absensiList.isEmpty) {
+        return {
+          'success': true,
+          'data': {
+            'totalHadir': 0,
+            'totalIzin': 0,
+            'totalSakit': 0,
+            'totalAlpa': 0,
+            'avgJamMasuk': '00:00',
+            'avgJamKeluar': '00:00',
+            'absensiPerTanggal': [],
+          }
+        };
+      }
+      
+      // Filter untuk bulan ini saja
+      final now = DateTime.now();
+      final currentMonth = now.month;
+      final currentYear = now.year;
+      
+      final thisMonthAbsensi = absensiList.where((absen) {
+        if (absen['tanggal'] == null) return false;
+        
+        try {
+          final tanggal = DateTime.parse(absen['tanggal']);
+          return tanggal.month == currentMonth && tanggal.year == currentYear;
+        } catch (e) {
+          print('Error parsing tanggal: ${absen['tanggal']} - $e');
+          return false;
+        }
+      }).toList();
+      
+      // Hitung rekap
+      int totalHadir = 0;
+      int totalIzin = 0;
+      int totalSakit = 0;
+      int totalAlpa = 0;
+      
+      // Untuk menghitung rata-rata jam masuk dan keluar
+      List<int> jamMasukMinutes = [];
+      List<int> jamKeluarMinutes = [];
+      
+      for (var absen in thisMonthAbsensi) {
+        // Hitung berdasarkan status
+        final status = absen['status']?.toLowerCase() ?? '';
+        if (status == 'hadir') {
+          totalHadir++;
+        } else if (status == 'izin') {
+          totalIzin++;
+        } else if (status == 'sakit') {
+          totalSakit++;
+        } else if (status == 'alpa') {
+          totalAlpa++;
+        }
+        
+        // Hitung rata-rata jam masuk
+        if (absen['jamMasuk'] != null && absen['jamMasuk'] != '-') {
+          try {
+            final parts = absen['jamMasuk'].split(':');
+            if (parts.length >= 2) {
+              final hour = int.parse(parts[0]);
+              final minute = int.parse(parts[1]);
+              jamMasukMinutes.add(hour * 60 + minute);
+            }
+          } catch (e) {
+            print('Error parsing jamMasuk: ${absen['jamMasuk']} - $e');
+          }
+        }
+        
+        // Hitung rata-rata jam keluar
+        if (absen['jamKeluar'] != null && absen['jamKeluar'] != '-') {
+          try {
+            final parts = absen['jamKeluar'].split(':');
+            if (parts.length >= 2) {
+              final hour = int.parse(parts[0]);
+              final minute = int.parse(parts[1]);
+              jamKeluarMinutes.add(hour * 60 + minute);
+            }
+          } catch (e) {
+            print('Error parsing jamKeluar: ${absen['jamKeluar']} - $e');
+          }
+        }
+      }
+      
+      // Hitung rata-rata jam masuk
+      String avgJamMasuk = '00:00';
+      if (jamMasukMinutes.isNotEmpty) {
+        final totalMinutes = jamMasukMinutes.reduce((a, b) => a + b);
+        final avgMinutes = totalMinutes ~/ jamMasukMinutes.length;
+        final hours = avgMinutes ~/ 60;
+        final minutes = avgMinutes % 60;
+        avgJamMasuk = '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+      }
+      
+      // Hitung rata-rata jam keluar
+      String avgJamKeluar = '00:00';
+      if (jamKeluarMinutes.isNotEmpty) {
+        final totalMinutes = jamKeluarMinutes.reduce((a, b) => a + b);
+        final avgMinutes = totalMinutes ~/ jamKeluarMinutes.length;
+        final hours = avgMinutes ~/ 60;
+        final minutes = avgMinutes % 60;
+        avgJamKeluar = '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}';
+      }
+      
+      // Kelompokkan absensi per tanggal
+      Map<String, Map<String, dynamic>> absensiPerTanggal = {};
+      for (var absen in thisMonthAbsensi) {
+        final tanggal = absen['tanggal'];
+        if (tanggal != null) {
+          absensiPerTanggal[tanggal] = absen;
+        }
+      }
+      
+      // Buat data rekap
+      final rekapData = {
+        'totalHadir': totalHadir,
+        'totalIzin': totalIzin,
+        'totalSakit': totalSakit,
+        'totalAlpa': totalAlpa,
+        'avgJamMasuk': avgJamMasuk,
+        'avgJamKeluar': avgJamKeluar,
+        'absensiPerTanggal': absensiPerTanggal.values.toList(),
+      };
+      
+      return {'success': true, 'data': rekapData};
+    } catch (e) {
+      print('Error saat mendapatkan rekap absensi: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
   }
 } 
