@@ -44,29 +44,16 @@ class ProfileScreen extends StatelessWidget {
                   child: SafeArea(
                     child: Padding(
                       padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Profil Pengguna',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () {},
-                                icon: Icon(
-                                  Icons.settings,
-                                  color: Colors.white,
-                                ),
-                                tooltip: 'Pengaturan',
-                              ),
-                            ],
+                          IconButton(
+                            onPressed: () {},
+                            icon: const Icon(
+                              Icons.settings,
+                              color: Colors.white,
+                            ),
+                            tooltip: 'Pengaturan',
                           ),
                         ],
                       ),

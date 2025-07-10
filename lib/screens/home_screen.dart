@@ -61,18 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Aplikasi Absensi'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchRekapData,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
@@ -93,95 +84,122 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 )
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Informasi pengguna
-                      Card(
-                        elevation: 4,
+              : SafeArea(
+                  child: CustomScrollView(
+                    slivers: [
+                      // Header dengan refresh action
+                      SliverToBoxAdapter(
                         child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Selamat Datang, ${user?.name ?? user?.username ?? 'Pengguna'}!',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Selamat Datang,',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    '${user?.name ?? user?.username ?? 'Pengguna'}',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              IconButton(
+                                onPressed: _fetchRekapData,
+                                icon: const Icon(Icons.refresh),
+                                tooltip: 'Refresh',
+                                style: IconButton.styleFrom(
+                                  backgroundColor: theme.colorScheme.primaryContainer,
+                                  foregroundColor: theme.colorScheme.primary,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Text('Role: ${user?.role ?? '-'}'),
                             ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      
-                      // Judul rekap bulanan
-                      Text(
-                        'Rekap Absensi Bulan ${_getCurrentMonthYear()}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+
+                      // Statistik absensi
+                      SliverToBoxAdapter(
+                        child: Container(
+                          margin: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                theme.colorScheme.primary,
+                                theme.colorScheme.secondary,
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.colorScheme.primary.withOpacity(0.3),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Rekap Bulan ${_getCurrentMonthYear()}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatItem('Hadir', _rekapData['totalHadir']?.toString() ?? '0', Icons.check_circle),
+                                  ),
+                                  Expanded(
+                                    child: _buildStatItem('Izin', _rekapData['totalIzin']?.toString() ?? '0', Icons.assignment_late),
+                                  ),
+                                  Expanded(
+                                    child: _buildStatItem('Sakit', _rekapData['totalSakit']?.toString() ?? '0', Icons.healing),
+                                  ),
+                                  Expanded(
+                                    child: _buildStatItem('Alpa', _rekapData['totalAlpa']?.toString() ?? '0', Icons.cancel),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      
-                      // Statistik absensi
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Hadir',
-                              _rekapData['totalHadir']?.toString() ?? '0',
-                              Colors.green,
-                              Icons.check_circle,
-                            ),
+
+                      // Rata-rata waktu absensi
+                      SliverToBoxAdapter(
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Izin',
-                              _rekapData['totalIzin']?.toString() ?? '0',
-                              Colors.orange,
-                              Icons.assignment_late,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildStatCard(
-                              'Sakit',
-                              _rekapData['totalSakit']?.toString() ?? '0',
-                              Colors.blue,
-                              Icons.healing,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildStatCard(
-                              'Alpa',
-                              _rekapData['totalAlpa']?.toString() ?? '0',
-                              Colors.red,
-                              Icons.cancel,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 24),
-                      
-                      // Rata-rata jam masuk dan keluar
-                      Card(
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -192,15 +210,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 16),
+                              const SizedBox(height: 20),
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                                 children: [
                                   Column(
                                     children: [
-                                      const Icon(Icons.login, color: Colors.green),
-                                      const SizedBox(height: 8),
-                                      const Text('Jam Masuk'),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.green.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.login, color: Colors.green),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Jam Masuk',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         _rekapData['avgJamMasuk'] ?? '00:00',
@@ -212,15 +243,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ],
                                   ),
                                   Container(
-                                    height: 50,
+                                    height: 60,
                                     width: 1,
                                     color: Colors.grey[300],
                                   ),
                                   Column(
                                     children: [
-                                      const Icon(Icons.logout, color: Colors.orange),
-                                      const SizedBox(height: 8),
-                                      const Text('Jam Keluar'),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(0.1),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.logout, color: Colors.orange),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      const Text(
+                                        'Jam Keluar',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey,
+                                        ),
+                                      ),
                                       const SizedBox(height: 4),
                                       Text(
                                         _rekapData['avgJamKeluar'] ?? '00:00',
@@ -237,52 +281,86 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
-                      
-                      // Ringkasan absensi bulan ini
-                      const Text(
-                        'Ringkasan Absensi Bulan Ini',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+
+                      // Riwayat absensi terakhir
+                      SliverToBoxAdapter(
+                        child: Container(
+                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text(
+                                    'Riwayat Absensi',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () {
+                                      // Navigasi ke halaman detail absensi (bisa diimplementasikan nanti)
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Menampilkan semua absensi')),
+                                      );
+                                    },
+                                    child: Text(
+                                      'Lihat Semua',
+                                      style: TextStyle(
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              _buildAbsensiSummary(),
+                            ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      _buildAbsensiSummary(),
                     ],
                   ),
                 ),
     );
   }
 
-  Widget _buildStatCard(String title, String value, Color color, IconData icon) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
+  Widget _buildStatItem(String title, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white, size: 24),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          title,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.9),
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 
@@ -358,63 +436,101 @@ class _HomeScreenState extends State<HomeScreen> {
                 statusColor = Colors.grey;
             }
             
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                title: Text(
-                  formattedDate,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 4),
-                    Row(
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      status.toLowerCase() == 'hadir' ? Icons.check_circle : 
+                      status.toLowerCase() == 'izin' ? Icons.assignment_late :
+                      status.toLowerCase() == 'sakit' ? Icons.healing : Icons.cancel,
+                      color: statusColor,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.login, size: 14),
-                        const SizedBox(width: 4),
-                        Flexible(child: Text('Masuk: $jamMasuk')),
-                        const SizedBox(width: 16),
-                        const Icon(Icons.logout, size: 14),
-                        const SizedBox(width: 4),
-                        Flexible(child: Text('Keluar: $jamKeluar')),
+                        Text(
+                          formattedDate,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 16,
+                          children: [
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.login, size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Masuk: $jamMasuk',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.logout, size: 14),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Keluar: $jamKeluar',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
-                trailing: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
                   ),
-                  decoration: BoxDecoration(
-                    color: statusColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    status.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      status.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
             );
           },
         ),
-        // Tampilkan tombol "Lihat Semua" jika ada lebih dari 5 item
-        if (absensiList.length > 5)
-          TextButton(
-            onPressed: () {
-              // Navigasi ke halaman detail absensi (bisa diimplementasikan nanti)
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Menampilkan semua absensi')),
-              );
-            },
-            child: const Text('Lihat Semua Absensi'),
-          ),
       ],
     );
   }

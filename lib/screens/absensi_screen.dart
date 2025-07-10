@@ -273,16 +273,6 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Data Absensi'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchAbsensiData,
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _errorMessage.isNotEmpty
@@ -303,190 +293,359 @@ class _AbsensiScreenState extends State<AbsensiScreen> {
                     ],
                   ),
                 )
-              : Column(
-                  children: [
-                    // Status absensi hari ini
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: _isAbsenPulangToday 
-                            ? Colors.green.shade50 
-                            : _isAbsenToday 
-                                ? Colors.orange.shade50 
-                                : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: _isAbsenPulangToday 
-                              ? Colors.green 
-                              : _isAbsenToday 
-                                  ? Colors.orange 
-                                  : Colors.grey,
-                          width: 1,
+              : SafeArea(
+                  child: Column(
+                    children: [
+                      // Header dengan refresh action
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Absensi',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: _fetchAbsensiData,
+                              icon: const Icon(Icons.refresh),
+                              tooltip: 'Refresh',
+                              style: IconButton.styleFrom(
+                                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                foregroundColor: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Status Absensi Hari Ini:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
+                      
+                      // Status absensi hari ini
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              _isAbsenPulangToday 
+                                  ? Colors.green 
+                                  : _isAbsenToday 
+                                      ? Colors.orange 
+                                      : Theme.of(context).colorScheme.primary,
+                              _isAbsenPulangToday 
+                                  ? Colors.green.shade700 
+                                  : _isAbsenToday 
+                                      ? Colors.deepOrange 
+                                      : Theme.of(context).colorScheme.secondary,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                _isAbsenPulangToday 
-                                    ? Icons.check_circle 
-                                    : _isAbsenToday 
-                                        ? Icons.access_time 
-                                        : Icons.pending,
-                                color: _isAbsenPulangToday 
-                                    ? Colors.green 
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Status Absensi Hari Ini',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _isAbsenPulangToday 
+                                        ? Icons.check_circle 
+                                        : _isAbsenToday 
+                                            ? Icons.access_time 
+                                            : Icons.pending,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _isAbsenPulangToday 
+                                            ? 'Absensi Selesai' 
+                                            : _isAbsenToday 
+                                                ? 'Sudah Absen Masuk' 
+                                                : 'Belum Absen',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _isAbsenPulangToday 
+                                            ? 'Anda telah melakukan absen masuk dan pulang' 
+                                            : _isAbsenToday 
+                                                ? 'Silakan lakukan absen pulang setelah selesai' 
+                                                : 'Silakan lakukan absen masuk untuk memulai',
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 2,
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: _isAbsenPulangToday ? null : _doAbsen,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: _isAbsenPulangToday 
+                                    ? Colors.grey 
                                     : _isAbsenToday 
                                         ? Colors.orange 
-                                        : Colors.grey,
+                                        : Theme.of(context).colorScheme.primary,
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 0,
                               ),
-                              const SizedBox(width: 8),
-                              Text(
+                              child: Text(
                                 _isAbsenPulangToday 
-                                    ? 'Absensi lengkap (masuk & pulang)' 
+                                    ? 'Absensi Selesai' 
                                     : _isAbsenToday 
-                                        ? 'Sudah absen masuk, belum absen pulang' 
-                                        : 'Belum melakukan absensi',
-                                style: TextStyle(
-                                  color: _isAbsenPulangToday 
-                                      ? Colors.green 
-                                      : _isAbsenToday 
-                                          ? Colors.orange 
-                                          : Colors.grey,
+                                        ? 'Absen Pulang' 
+                                        : 'Absen Masuk',
+                                style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    // Daftar absensi
-                    Expanded(
-                      child: _absensiData.isEmpty
-                          ? const Center(child: Text('Tidak ada data absensi'))
-                          : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              itemCount: _absensiData.length,
-                              itemBuilder: (context, index) {
-                                final absensi = _absensiData[index];
-                                final tanggal = absensi['tanggal'] ?? '-';
-                                final jamMasuk = absensi['jamMasuk'] ?? '-';
-                                final jamKeluar = absensi['jamKeluar'] ?? '-';
-                                final status = absensi['status'] ?? 'hadir';
-                                
-                                Color statusColor;
-                                switch (status.toLowerCase()) {
-                                  case 'hadir':
-                                    statusColor = Colors.green;
-                                    break;
-                                  case 'izin':
-                                    statusColor = Colors.orange;
-                                    break;
-                                  case 'sakit':
-                                    statusColor = Colors.blue;
-                                    break;
-                                  case 'alpa':
-                                    statusColor = Colors.red;
-                                    break;
-                                  default:
-                                    statusColor = Colors.grey;
-                                }
-                                
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              absensi['namaGuru'] ?? 'Nama tidak tersedia',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: 8,
-                                                vertical: 4,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: statusColor,
-                                                borderRadius: BorderRadius.circular(4),
-                                              ),
-                                              child: Text(
-                                                status.toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                      
+                      // Label riwayat absensi
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Riwayat Absensi',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Flexible(
+                              child: Text(
+                                DateFormat('MMMM yyyy', 'id_ID').format(DateTime.now()),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Daftar absensi
+                      Expanded(
+                        child: _absensiData.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_today_outlined,
+                                      size: 80,
+                                      color: Colors.grey[300],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      'Tidak ada data absensi',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                itemCount: _absensiData.length,
+                                itemBuilder: (context, index) {
+                                  final absensi = _absensiData[index];
+                                  final tanggal = absensi['tanggal'] ?? '-';
+                                  final jamMasuk = absensi['jamMasuk'] ?? '-';
+                                  final jamKeluar = absensi['jamKeluar'] ?? '-';
+                                  final status = absensi['status'] ?? 'hadir';
+                                  
+                                  Color statusColor;
+                                  switch (status.toLowerCase()) {
+                                    case 'hadir':
+                                      statusColor = Colors.green;
+                                      break;
+                                    case 'izin':
+                                      statusColor = Colors.orange;
+                                      break;
+                                    case 'sakit':
+                                      statusColor = Colors.blue;
+                                      break;
+                                    case 'alpa':
+                                      statusColor = Colors.red;
+                                      break;
+                                    default:
+                                      statusColor = Colors.grey;
+                                  }
+                                  
+                                  // Format tanggal menjadi lebih mudah dibaca
+                                  String formattedDate = tanggal;
+                                  try {
+                                    final date = DateTime.parse(tanggal);
+                                    formattedDate = DateFormat('EEEE, d MMM yyyy', 'id_ID').format(date);
+                                  } catch (e) {
+                                    // Gunakan format asli jika parsing gagal
+                                  }
+                                  
+                                  return Container(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.03),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 2),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Text('Tanggal: $tanggal'),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.login, size: 16),
-                                            const SizedBox(width: 4),
-                                            Text('Jam Masuk: $jamMasuk'),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.logout, size: 16),
-                                            const SizedBox(width: 4),
-                                            Text('Jam Keluar: $jamKeluar'),
-                                          ],
-                                        ),
-                                        if (absensi['keterangan'] != null && absensi['keterangan'] != '')
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 8),
-                                            child: Text(
-                                              'Keterangan: ${absensi['keterangan']}',
-                                              style: const TextStyle(
-                                                fontStyle: FontStyle.italic,
-                                              ),
-                                            ),
-                                          ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
+                                    child: Column(
+                                      children: [
+                                        // Header dengan status
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                          decoration: BoxDecoration(
+                                            color: statusColor.withOpacity(0.1),
+                                            borderRadius: const BorderRadius.only(
+                                              topLeft: Radius.circular(16),
+                                              topRight: Radius.circular(16),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  formattedDate,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: 10,
+                                                  vertical: 5,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: statusColor,
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  status.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Informasi jam masuk dan keluar
+                                        Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                            children: [
+                                              _buildTimeInfo(Icons.login, 'Masuk', jamMasuk, Colors.green),
+                                              Container(
+                                                height: 40,
+                                                width: 1,
+                                                color: Colors.grey[300],
+                                              ),
+                                              _buildTimeInfo(Icons.logout, 'Keluar', jamKeluar, Colors.orange),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
-      // Tampilkan tombol hanya jika belum absen atau sudah absen masuk tapi belum absen pulang
-      floatingActionButton: _isAbsenPulangToday 
-          ? null // Tidak menampilkan tombol jika sudah absen pulang
-          : FloatingActionButton.extended(
-              onPressed: _doAbsen,
-              icon: Icon(_isAbsenToday ? Icons.logout : Icons.login),
-              label: Text(_isAbsenToday ? 'Absen Pulang' : 'Absen'),
-              backgroundColor: _isAbsenToday ? Colors.orange : Colors.green,
+    );
+  }
+  
+  Widget _buildTimeInfo(IconData icon, String label, String time, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
             ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            time,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 } 

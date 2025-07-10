@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
@@ -63,55 +64,62 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    return Scaffold(
-      body: FadeTransition(
-        opacity: _animationController.drive(CurveTween(curve: Curves.easeInOut)),
-        child: _widgetOptions.elementAt(_selectedIndex),
+    // Menggunakan AnnotatedRegion untuk mengatur warna navbar
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        systemNavigationBarColor: theme.colorScheme.primary,
+        systemNavigationBarIconBrightness: Brightness.light,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
+      child: Scaffold(
+        body: FadeTransition(
+          opacity: _animationController.drive(CurveTween(curve: Curves.easeInOut)),
+          child: _widgetOptions.elementAt(_selectedIndex),
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          child: BottomNavigationBar(
-            items: <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
-                label: 'Beranda',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(_selectedIndex == 1 ? Icons.assignment_rounded : Icons.assignment_outlined),
-                label: 'Absensi',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(_selectedIndex == 2 ? Icons.person : Icons.person_outlined),
-                label: 'Profil',
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
               ),
             ],
-            currentIndex: _selectedIndex,
-            selectedItemColor: theme.colorScheme.primary,
-            unselectedItemColor: Colors.grey,
-            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-            elevation: 0,
-            backgroundColor: Colors.white,
-            type: BottomNavigationBarType.fixed,
-            showUnselectedLabels: true,
-            onTap: _onItemTapped,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+            child: BottomNavigationBar(
+              items: <BottomNavigationBarItem>[
+                BottomNavigationBarItem(
+                  icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
+                  label: 'Beranda',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(_selectedIndex == 1 ? Icons.assignment_rounded : Icons.assignment_outlined),
+                  label: 'Absensi',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(_selectedIndex == 2 ? Icons.person : Icons.person_outlined),
+                  label: 'Profil',
+                ),
+              ],
+              currentIndex: _selectedIndex,
+              selectedItemColor: theme.colorScheme.primary,
+              unselectedItemColor: Colors.grey,
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              elevation: 0,
+              backgroundColor: Colors.white,
+              type: BottomNavigationBarType.fixed,
+              showUnselectedLabels: true,
+              onTap: _onItemTapped,
+            ),
           ),
         ),
       ),
