@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -11,6 +12,15 @@ void main() {
   // Inisialisasi locale untuk bahasa Indonesia
   initializeDateFormatting('id_ID', null).then((_) {
     Intl.defaultLocale = 'id_ID';
+    
+    // Mengatur warna statusbar dan navbar di seluruh aplikasi
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.white,
+      statusBarIconBrightness: Brightness.dark,
+      systemNavigationBarColor: Colors.white,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ));
+    
     runApp(const MyApp());
   });
 }
@@ -114,7 +124,7 @@ class MyApp extends StatelessWidget {
                   type: BottomNavigationBarType.fixed,
                   elevation: 8,
                 ),
-                scaffoldBackgroundColor: Colors.grey.shade50,
+                scaffoldBackgroundColor: Colors.white,
               ),
               home: authProvider.isLoading
                   ? const Scaffold(

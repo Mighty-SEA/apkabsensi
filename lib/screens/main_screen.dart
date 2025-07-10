@@ -64,11 +64,18 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Menggunakan AnnotatedRegion untuk mengatur warna navbar
+    // Menggunakan AnnotatedRegion untuk mengatur warna navbar dan statusbar
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle(
-        systemNavigationBarColor: theme.colorScheme.primary,
-        systemNavigationBarIconBrightness: Brightness.light,
+      value: const SystemUiOverlayStyle(
+        // Warna dan brightness status bar (bagian atas)
+        statusBarColor: Colors.white,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        
+        // Warna dan brightness navigation bar (bagian bawah)
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
         body: FadeTransition(
