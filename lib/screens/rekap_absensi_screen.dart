@@ -633,120 +633,239 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
                       ),
                     ),
                     
-                    // Filter dan pencarian
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        children: [
-                          // Filter guru
-                          DropdownButtonFormField<String?>(
-                            decoration: InputDecoration(
-                              labelText: 'Filter Guru',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              prefixIcon: const Icon(Icons.person),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                            ),
-                            value: _selectedGuruId,
-                            hint: const Text('Semua Guru'),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedGuruId = value;
-                              });
-                            },
-                            items: [
-                              const DropdownMenuItem<String?>(
-                                value: null,
-                                child: Text('Semua Guru'),
-                              ),
-                              ..._allGuruData.map((guru) {
-                                return DropdownMenuItem<String>(
-                                  value: guru.id,
-                                  child: Text(guru.nama),
-                                );
-                              }).toList(),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 12),
-                          
-                          // Pencarian
-                          TextField(
-                            controller: _searchController,
-                            decoration: InputDecoration(
-                              labelText: 'Cari Guru',
-                              hintText: 'Masukkan nama guru',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              prefixIcon: const Icon(Icons.search),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                              suffixIcon: _searchQuery.isNotEmpty
-                                  ? IconButton(
-                                      icon: const Icon(Icons.clear),
-                                      onPressed: () {
-                                        _searchController.clear();
-                                        setState(() {
-                                          _searchQuery = '';
-                                        });
-                                      },
-                                    )
-                                  : null,
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                _searchQuery = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Statistik
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildStatisticsCard(),
-                    ),
-                    
-                    const SizedBox(height: 16),
-                    
-                    // Label untuk daftar absensi
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.list_alt,
-                            color: Theme.of(context).primaryColor,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Daftar Absensi',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            '${_filteredAbsensiData.length} data',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    const SizedBox(height: 8),
-                    
-                    // Daftar absensi
+                    // Konten dengan scroll
                     Expanded(
-                      child: _buildAbsensiList(),
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Column(
+                          children: [
+                            // Filter dan pencarian
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                children: [
+                                  // Filter guru
+                                  DropdownButtonFormField<String?>(
+                                    decoration: InputDecoration(
+                                      labelText: 'Filter Guru',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      prefixIcon: const Icon(Icons.person),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                    ),
+                                    value: _selectedGuruId,
+                                    hint: const Text('Semua Guru'),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedGuruId = value;
+                                      });
+                                    },
+                                    items: [
+                                      const DropdownMenuItem<String?>(
+                                        value: null,
+                                        child: Text('Semua Guru'),
+                                      ),
+                                      ..._allGuruData.map((guru) {
+                                        return DropdownMenuItem<String>(
+                                          value: guru.id,
+                                          child: Text(guru.nama),
+                                        );
+                                      }).toList(),
+                                    ],
+                                  ),
+                                  
+                                  const SizedBox(height: 12),
+                                  
+                                  // Pencarian
+                                  TextField(
+                                    controller: _searchController,
+                                    decoration: InputDecoration(
+                                      labelText: 'Cari Guru',
+                                      hintText: 'Masukkan nama guru',
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      prefixIcon: const Icon(Icons.search),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+                                      suffixIcon: _searchQuery.isNotEmpty
+                                          ? IconButton(
+                                              icon: const Icon(Icons.clear),
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                setState(() {
+                                                  _searchQuery = '';
+                                                });
+                                              },
+                                            )
+                                          : null,
+                                    ),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _searchQuery = value;
+                                      });
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            // Statistik
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: _buildStatisticsCard(),
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Label untuk daftar absensi
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.list_alt,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Daftar Absensi',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(context).primaryColor,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${_filteredAbsensiData.length} data',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            // Daftar absensi
+                            ListView.builder(
+                              itemCount: _filteredAbsensiData.length,
+                              padding: const EdgeInsets.all(8),
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemBuilder: (context, index) {
+                                final absensi = _filteredAbsensiData[index];
+                                final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
+                                final tanggal = absensi['tanggal'] != null
+                                    ? DateFormat('dd MMMM yyyy').format(DateTime.parse(absensi['tanggal']))
+                                    : 'Tanggal tidak diketahui';
+                                    
+                                Color statusColor;
+                                IconData statusIcon;
+                                
+                                switch (status) {
+                                  case 'hadir':
+                                    statusColor = Colors.green;
+                                    statusIcon = Icons.check_circle;
+                                    break;
+                                  case 'izin':
+                                    statusColor = Colors.orange;
+                                    statusIcon = Icons.pending_actions;
+                                    break;
+                                  case 'sakit':
+                                    statusColor = Colors.blue;
+                                    statusIcon = Icons.medical_services;
+                                    break;
+                                  case 'alpa':
+                                    statusColor = Colors.red;
+                                    statusIcon = Icons.cancel;
+                                    break;
+                                  default:
+                                    statusColor = Colors.grey;
+                                    statusIcon = Icons.help;
+                                }
+                                
+                                return Card(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    leading: CircleAvatar(
+                                      backgroundColor: statusColor.withOpacity(0.2),
+                                      foregroundColor: statusColor,
+                                      radius: 20,
+                                      child: Icon(statusIcon),
+                                    ),
+                                    title: Text(
+                                      _getGuruName(absensi['guruId']?.toString()),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const SizedBox(height: 4),
+                                        Text(tanggal),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            const Icon(
+                                              Icons.access_time,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Masuk: ${absensi['jamMasuk'] ?? '-'}',
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Icon(
+                                              Icons.logout,
+                                              size: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              'Keluar: ${absensi['jamKeluar'] ?? '-'}',
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    trailing: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: statusColor.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        status.toUpperCase(),
+                                        style: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    onTap: () => _showAbsensiDetail(absensi),
+                                  ),
+                                );
+                              },
+                            ),
+                            // Tambahkan padding di bagian bawah untuk memastikan konten terakhir terlihat
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
