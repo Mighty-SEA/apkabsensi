@@ -7,6 +7,7 @@ import 'absensi_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
 import 'absensi_admin_screen.dart';
+import 'rekap_absensi_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -20,12 +21,6 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   int _selectedIndex = 0;
   late AnimationController _animationController;
   
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeScreen(),
-    AbsensiScreen(),
-    ProfileScreen(),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -73,20 +68,64 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
+    final bool isAdmin = user != null && user.role == 'ADMINISTRASI';
 
-    // Widget absensi sesuai role
-    Widget absensiWidget;
-    if (user != null && user.role == 'ADMINISTRASI') {
-      absensiWidget = const AbsensiAdminScreen();
+    // Widget dan navigasi sesuai role
+    late List<Widget> widgetOptions;
+    late List<BottomNavigationBarItem> navItems;
+    
+    if (isAdmin) {
+      // Opsi widget untuk admin
+      widgetOptions = [
+        const HomeScreen(),
+        const AbsensiAdminScreen(),
+        const RekapAbsensiScreen(),
+        const ProfileScreen(),
+      ];
+      
+      // Item navigasi untuk admin
+      navItems = [
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
+          label: 'Beranda',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 1 ? Icons.assignment_rounded : Icons.assignment_outlined),
+          label: 'Absensi',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 2 ? Icons.bar_chart : Icons.bar_chart_outlined),
+          label: 'Rekap',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 3 ? Icons.person : Icons.person_outlined),
+          label: 'Profil',
+        ),
+      ];
     } else {
-      absensiWidget = const AbsensiScreen();
+      // Opsi widget untuk guru
+      widgetOptions = [
+        const HomeScreen(),
+        const AbsensiScreen(),
+        const ProfileScreen(),
+      ];
+      
+      // Item navigasi untuk guru
+      navItems = [
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
+          label: 'Beranda',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 1 ? Icons.assignment_rounded : Icons.assignment_outlined),
+          label: 'Absensi',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 2 ? Icons.person : Icons.person_outlined),
+          label: 'Profil',
+        ),
+      ];
     }
-
-    final List<Widget> _widgetOptions = <Widget>[
-      const HomeScreen(),
-      absensiWidget,
-      const ProfileScreen(),
-    ];
     
     // Menggunakan AnnotatedRegion untuk mengatur warna navbar dan statusbar
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -104,7 +143,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       child: Scaffold(
         body: FadeTransition(
           opacity: _animationController.drive(CurveTween(curve: Curves.easeInOut)),
-          child: _widgetOptions.elementAt(_selectedIndex),
+          child: widgetOptions.elementAt(_selectedIndex),
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
@@ -127,20 +166,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
               topRight: Radius.circular(20),
             ),
             child: BottomNavigationBar(
-              items: <BottomNavigationBarItem>[
-                BottomNavigationBarItem(
-                  icon: Icon(_selectedIndex == 0 ? Icons.home : Icons.home_outlined),
-                  label: 'Beranda',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(_selectedIndex == 1 ? Icons.assignment_rounded : Icons.assignment_outlined),
-                  label: 'Absensi',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(_selectedIndex == 2 ? Icons.person : Icons.person_outlined),
-                  label: 'Profil',
-                ),
-              ],
+              items: navItems,
               currentIndex: _selectedIndex,
               selectedItemColor: theme.colorScheme.primary,
               unselectedItemColor: Colors.grey,

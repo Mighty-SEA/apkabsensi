@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import 'dashboard_admin_screen.dart';
 import 'absensi_admin_screen.dart';
 import 'manajemen_guru_screen.dart';
+import 'rekap_absensi_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -447,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       Colors.orange,
                       () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
+                        MaterialPageRoute(builder: (context) => const RekapAbsensiScreen()),
                       ),
                     ),
                   ],
