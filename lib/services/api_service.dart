@@ -526,26 +526,151 @@ class ApiService {
 
   // Mendapatkan data guru
   Future<Map<String, dynamic>> getGuruData() async {
-    // Jika menggunakan mock data
-    if (useMockData) {
-      return ApiMock.mockGuruData();
-    }
-
-    // Jika menggunakan API
     try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
       final token = await getToken();
       if (token == null) {
-        return {'success': false, 'message': 'Token tidak tersedia'};
+        return {'success': false, 'message': 'Token tidak ditemukan'};
       }
 
       print('Mengambil data guru dari: $baseUrl$guruEndpoint');
+      
       final response = await _client.get(
         Uri.parse('$baseUrl$guruEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(_requestTimeout);
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['guru'] ?? []};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil data guru: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching guru data: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Menambahkan guru baru (beserta user)
+  Future<Map<String, dynamic>> createGuru(Map<String, dynamic> guruData) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak ditemukan'};
+      }
+
+      // Pastikan ada username dan password untuk user
+      if (!guruData.containsKey('username') || !guruData.containsKey('password')) {
+        return {'success': false, 'message': 'Username dan password diperlukan untuk membuat akun'};
+      }
+
+      print('Mengirim data guru ke: $baseUrl$guruEndpoint');
+      print('Data guru: $guruData');
+      
+      final dataToSend = {
+        'nip': guruData['nip'],
+        'nama': guruData['nama'],
+        'jenisKelamin': guruData['jenisKelamin'] ?? 'Laki-laki',
+        'alamat': guruData['alamat'] ?? '',
+        'noTelp': guruData['noTelp'] ?? '',
+        'email': guruData['email'] ?? '',
+        'mataPelajaran': guruData['mataPelajaran'] ?? '',
+        'user': {
+          'username': guruData['username'],
+          'password': guruData['password'],
+          'role': 'GURU'
+        }
+      };
+      
+      final response = await _client.post(
+        Uri.parse('$baseUrl$guruEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(dataToSend),
+      ).timeout(_requestTimeout);
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      final responseData = jsonDecode(response.body);
+      
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return {
+          'success': true, 
+          'data': responseData['guru'],
+          'message': 'Guru berhasil ditambahkan'
+        };
+      } else {
+        final errorMessage = responseData['error'] ?? 
+                           responseData['message'] ?? 
+                           'Gagal menambahkan guru: ${response.statusCode}';
+        return {
+          'success': false,
+          'message': errorMessage,
+        };
+      }
+    } catch (e) {
+      _logger.e('Error creating guru: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Memperbarui data guru
+  Future<Map<String, dynamic>> updateGuru(String guruId, Map<String, dynamic> guruData) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak ditemukan'};
+      }
+
+      print('Memperbarui data guru: $baseUrl$guruEndpoint/$guruId');
+      print('Data update: $guruData');
+      
+      // Data yang akan dikirim (hanya field yang diizinkan)
+      final dataToSend = {
+        'nip': guruData['nip'],
+        'nama': guruData['nama'],
+        'jenisKelamin': guruData['jenisKelamin'],
+        'alamat': guruData['alamat'],
+        'noTelp': guruData['noTelp'],
+        'email': guruData['email'],
+        'mataPelajaran': guruData['mataPelajaran'],
+      };
+      
+      // Hapus field null atau undefined
+      dataToSend.removeWhere((key, value) => value == null);
+      
+      final response = await _client.put(
+        Uri.parse('$baseUrl$guruEndpoint/$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(dataToSend),
+      ).timeout(_requestTimeout);
 
       print('Status code: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -553,45 +678,82 @@ class ApiService {
       final responseData = jsonDecode(response.body);
       
       if (response.statusCode == 200) {
-        // Backend mungkin mengembalikan data dalam format yang berbeda
-        // Bisa array langsung, atau mungkin dalam objek dengan property tertentu
-        List<dynamic> guruList = [];
-        
-        if (responseData is List) {
-          // Jika respons langsung berupa array
-          guruList = responseData;
-        } else if (responseData is Map) {
-          // Jika respons berupa objek, coba cari property yang berisi list guru
-          if (responseData.containsKey('guru')) {
-            guruList = responseData['guru'] as List;
-          } else if (responseData.containsKey('data')) {
-            final data = responseData['data'];
-            if (data is List) {
-              guruList = data;
-            } else {
-              return {'success': false, 'message': 'Format data guru tidak valid'};
-            }
-          } else {
-            // Coba cari property pertama yang berisi array
-            for (var key in responseData.keys) {
-              final value = responseData[key];
-              if (value is List) {
-                guruList = value;
-                break;
-              }
-            }
-          }
-        }
-        
-        return {'success': true, 'data': guruList};
+        return {
+          'success': true, 
+          'data': responseData['guru'],
+          'message': 'Data guru berhasil diperbarui'
+        };
       } else {
+        final errorMessage = responseData['error'] ?? 
+                           responseData['message'] ?? 
+                           'Gagal memperbarui data guru: ${response.statusCode}';
         return {
           'success': false,
-          'message': responseData['error'] ?? responseData['message'] ?? 'Gagal mengambil data guru',
+          'message': errorMessage,
         };
       }
     } catch (e) {
-      print('Error saat mengambil data guru: $e');
+      _logger.e('Error updating guru: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Menghapus guru
+  Future<Map<String, dynamic>> deleteGuru(String guruId) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak ditemukan'};
+      }
+
+      print('Menghapus guru: $baseUrl$guruEndpoint/$guruId');
+      
+      final response = await _client.delete(
+        Uri.parse('$baseUrl$guruEndpoint/$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      print('Status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
+      
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        String message;
+        try {
+          final responseData = jsonDecode(response.body);
+          message = responseData['message'] ?? 'Guru berhasil dihapus';
+        } catch (e) {
+          message = 'Guru berhasil dihapus';
+        }
+        
+        return {
+          'success': true,
+          'message': message
+        };
+      } else {
+        String errorMessage;
+        try {
+          final responseData = jsonDecode(response.body);
+          errorMessage = responseData['error'] ?? 
+                       responseData['message'] ?? 
+                       'Gagal menghapus guru: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal menghapus guru: ${response.statusCode}';
+        }
+        
+        return {
+          'success': false,
+          'message': errorMessage,
+        };
+      }
+    } catch (e) {
+      _logger.e('Error deleting guru: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
@@ -1054,6 +1216,141 @@ class ApiService {
       return {'success': true, 'data': rekapData};
     } catch (e) {
       print('Error saat mendapatkan rekap absensi: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Rekap bulanan semua guru untuk dashboard admin
+  Future<Map<String, dynamic>> getAbsensiRekapAllGuru() async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+      final response = await _client.get(
+        Uri.parse('$baseUrl/absensi/rekap-all'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': data['rekap'] ?? data['data'] ?? data};
+      } else {
+        return {'success': false, 'message': data['message'] ?? 'Gagal memuat rekap'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Mengambil data absensi hari ini saja
+  Future<Map<String, dynamic>> getAbsensiHariIni() async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak ditemukan'};
+      }
+
+      // Format tanggal hari ini
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      
+      final response = await _client.get(
+        Uri.parse('$baseUrl$absensiEndpoint?tanggal=$today'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['absensi'] ?? []};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil data absensi: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching today\'s absensi data: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Mengupdate absensi yang sudah ada
+  Future<Map<String, dynamic>> updateAbsensiStatus(int guruId, String status) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak ditemukan'};
+      }
+
+      // Format tanggal hari ini untuk mencari absensi yang mau diupdate
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      
+      // Cek dulu apakah sudah ada absensi hari ini
+      final response = await _client.get(
+        Uri.parse('$baseUrl$absensiEndpoint?tanggal=$today&guruId=$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final absensiList = data['absensi'] ?? [];
+        
+        if (absensiList.isNotEmpty) {
+          // Ada absensi hari ini, update status
+          final absensiId = absensiList[0]['id'];
+          
+          final updateResponse = await _client.put(
+            Uri.parse('$baseUrl$absensiEndpoint/$absensiId'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'status': status,
+            }),
+          ).timeout(_requestTimeout);
+
+          if (updateResponse.statusCode == 200) {
+            final updateData = jsonDecode(updateResponse.body);
+            return {'success': true, 'data': updateData, 'message': 'Status absensi berhasil diperbarui'};
+          } else {
+            return {
+              'success': false,
+              'message': 'Gagal memperbarui status absensi: ${updateResponse.statusCode}',
+            };
+          }
+        } else {
+          // Belum ada absensi hari ini, buat baru
+          return createAbsensi({
+            'guruId': guruId,
+            'status': status,
+            'jamMasuk': DateTime.now().toIso8601String(),
+          });
+        }
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal memeriksa absensi hari ini: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error updating absensi status: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }

@@ -11,6 +11,9 @@ import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/api_service.dart';
+import 'screens/absensi_admin_screen.dart';
+import 'screens/dashboard_admin_screen.dart';
+import 'screens/manajemen_guru_screen.dart';
 
 void main() async {
   // Pastikan binding Flutter sudah diinisialisasi
@@ -165,7 +168,9 @@ class MyApp extends StatelessWidget {
               home: authProvider.isLoading
                   ? const SplashScreen()
                   : authProvider.isAuthenticated
-                      ? const MainScreen()
+                      ? (authProvider.user?.role == 'administrasi'
+                          ? const AdminMainScreen()
+                          : const MainScreen())
                       : const LoginScreen(),
             );
           },
@@ -260,5 +265,36 @@ class _InitializerWidgetState extends State<InitializerWidget> with WidgetsBindi
   @override
   Widget build(BuildContext context) {
     return widget.child;
+  }
+}
+
+// Tambahkan AdminMainScreen
+class AdminMainScreen extends StatefulWidget {
+  const AdminMainScreen({Key? key}) : super(key: key);
+  @override
+  State<AdminMainScreen> createState() => _AdminMainScreenState();
+}
+
+class _AdminMainScreenState extends State<AdminMainScreen> {
+  int _selectedIndex = 0;
+  static const List<Widget> _pages = [
+    AbsensiAdminScreen(),
+    DashboardAdminScreen(),
+    ManajemenGuruScreen(),
+  ];
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (i) => setState(() => _selectedIndex = i),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.checklist), label: 'Absensi'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Manajemen Guru'),
+        ],
+      ),
+    );
   }
 }

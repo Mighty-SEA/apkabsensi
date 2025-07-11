@@ -6,6 +6,7 @@ import 'home_screen.dart';
 import 'absensi_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
+import 'absensi_admin_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -70,6 +71,22 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+
+    // Widget absensi sesuai role
+    Widget absensiWidget;
+    if (user != null && user.role == 'ADMINISTRASI') {
+      absensiWidget = const AbsensiAdminScreen();
+    } else {
+      absensiWidget = const AbsensiScreen();
+    }
+
+    final List<Widget> _widgetOptions = <Widget>[
+      const HomeScreen(),
+      absensiWidget,
+      const ProfileScreen(),
+    ];
     
     // Menggunakan AnnotatedRegion untuk mengatur warna navbar dan statusbar
     return AnnotatedRegion<SystemUiOverlayStyle>(

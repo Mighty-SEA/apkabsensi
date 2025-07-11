@@ -36,17 +36,18 @@ dependencies:
   cupertino_icons: ^1.0.8
   http: ^1.2.0
   shared_preferences: ^2.2.2
-  provider: ^6.1.1
+  provider: ^6.1.5
   intl: ^0.20.2
   google_fonts: ^6.1.0
   
   # Tambahan dependencies untuk optimasi
   shimmer: ^3.0.0                 # Untuk efek loading skeleton
-  cached_network_image: ^3.3.1    # Untuk caching gambar
+  cached_network_image: ^3.4.1    # Untuk caching gambar
   connectivity_plus: ^6.1.4       # Untuk mengecek konektivitas
-  logger: ^2.0.2+1                # Untuk logging yang lebih baik
+  logger: ^2.6.0                # Untuk logging yang lebih baik
   flutter_secure_storage: ^9.0.0  # Untuk penyimpanan yang lebih aman
   path_provider: ^2.1.2           # Untuk akses file sistem
+  form_field_validator: ^1.1.0
 
 dev_dependencies:
   flutter_test:

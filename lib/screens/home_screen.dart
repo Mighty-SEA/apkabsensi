@@ -5,6 +5,9 @@ import 'package:shimmer/shimmer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import 'dashboard_admin_screen.dart';
+import 'absensi_admin_screen.dart';
+import 'manajemen_guru_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   bool _isLoading = false;
   bool _isRefreshing = false;
   Map<String, dynamic> _rekapData = {};
+  Map<String, dynamic> _adminData = {}; // Data khusus admin
   String _errorMessage = '';
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey = GlobalKey<RefreshIndicatorState>();
 
@@ -27,10 +31,83 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
   @override
   void initState() {
     super.initState();
-    _fetchRekapData();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final user = authProvider.user;
+    
+    if (user != null && user.role == 'ADMINISTRASI') {
+      await _fetchAdminData();
+    } else {
+      await _fetchRekapData();
+    }
+  }
+
+  Future<void> _fetchAdminData() async {
+    if (_isRefreshing) return;
+    
+    setState(() {
+      _isLoading = !_isRefreshing;
+      _isRefreshing = false;
+      _errorMessage = '';
+    });
+
+    try {
+      // Ambil data guru (jumlah guru)
+      final guruResult = await _apiService.getGuruData();
+      
+      // Ambil data rekap absensi hari ini
+      final absensiResult = await _apiService.getAbsensiHariIni();
+      
+      if (guruResult['success'] && absensiResult['success']) {
+        final guruList = guruResult['data'] as List? ?? [];
+        final absensiList = absensiResult['data'] as List? ?? [];
+        
+        // Hitung summary absensi hari ini
+        int totalGuru = guruList.length;
+        int totalHadir = 0;
+        int totalIzin = 0;
+        int totalSakit = 0;
+        int totalAlpa = 0;
+        
+        for (var absensi in absensiList) {
+          final status = absensi['status'] ?? '';
+          if (status == 'HADIR') totalHadir++;
+          else if (status == 'IZIN') totalIzin++;
+          else if (status == 'SAKIT') totalSakit++;
+          else if (status == 'ALPA') totalAlpa++;
+        }
+        
+        setState(() {
+          _adminData = {
+            'totalGuru': totalGuru,
+            'totalHadir': totalHadir,
+            'totalIzin': totalIzin,
+            'totalSakit': totalSakit,
+            'totalAlpa': totalAlpa,
+            'belumAbsen': totalGuru - (totalHadir + totalIzin + totalSakit + totalAlpa),
+            'tanggal': DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(DateTime.now()),
+          };
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _errorMessage = guruResult['message'] ?? absensiResult['message'] ?? 'Gagal memuat data';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = 'Terjadi kesalahan: $e';
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _fetchRekapData() async {
+    // Existing code for non-admin users
     if (_isRefreshing) return;
     
     setState(() {
@@ -65,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     setState(() {
       _isRefreshing = true;
     });
-    await _fetchRekapData();
+    await _loadData();
     return;
   }
 
@@ -232,296 +309,348 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    super.build(context); // Diperlukan untuk AutomaticKeepAliveClientMixin
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
+  Widget _buildAdminDashboard(BuildContext context, String userName) {
     final theme = Theme.of(context);
-
-    return Scaffold(
-      body: RefreshIndicator(
-        key: _refreshIndicatorKey,
-        onRefresh: _handleRefresh,
-        child: _isLoading
-            ? _buildSkeletonLoading()
-            : _errorMessage.isNotEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _errorMessage,
-                          style: const TextStyle(color: Colors.red),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _fetchRekapData,
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
+    
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        // Header admin
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Selamat Datang, Admin',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                  )
-                : SafeArea(
-                    child: CustomScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      slivers: [
-                        // Header dengan refresh action
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Selamat Datang,',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                    Text(
-                                      '${user?.name ?? user?.username ?? 'Pengguna'}',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                IconButton(
-                                  onPressed: () => _refreshIndicatorKey.currentState?.show(),
-                                  icon: const Icon(Icons.refresh),
-                                  tooltip: 'Refresh',
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: theme.colorScheme.primaryContainer,
-                                    foregroundColor: theme.colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Statistik absensi
-                        SliverToBoxAdapter(
-                          child: Hero(
-                            tag: 'rekap-card',
-                            child: Material(
-                              type: MaterialType.transparency,
-                              child: Container(
-                                margin: const EdgeInsets.all(20),
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      theme.colorScheme.primary,
-                                      theme.colorScheme.secondary,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: theme.colorScheme.primary.withOpacity(0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Rekap Bulan ${_getCurrentMonthYear()}',
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 20),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: _buildStatItem('Hadir', _rekapData['totalHadir']?.toString() ?? '0', Icons.check_circle),
-                                        ),
-                                        Expanded(
-                                          child: _buildStatItem('Izin', _rekapData['totalIzin']?.toString() ?? '0', Icons.assignment_late),
-                                        ),
-                                        Expanded(
-                                          child: _buildStatItem('Sakit', _rekapData['totalSakit']?.toString() ?? '0', Icons.healing),
-                                        ),
-                                        Expanded(
-                                          child: _buildStatItem('Alpa', _rekapData['totalAlpa']?.toString() ?? '0', Icons.cancel),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // Rata-rata waktu absensi
-                        SliverToBoxAdapter(
-                          child: Container(
-                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Rata-rata Waktu Absensi',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.withOpacity(0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.login, color: Colors.green),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        const Text(
-                                          'Jam Masuk',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _rekapData['avgJamMasuk'] ?? '00:00',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    Container(
-                                      height: 60,
-                                      width: 1,
-                                      color: Colors.grey[300],
-                                    ),
-                                    Column(
-                                      children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.red.withOpacity(0.1),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.logout, color: Colors.red),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        const Text(
-                                          'Jam Pulang',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.grey,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          _rekapData['avgJamPulang'] ?? '00:00',
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Riwayat absensi terakhir
-                        SliverToBoxAdapter(
-                          child: Container(
-                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Riwayat Absensi',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextButton(
-                                      onPressed: () {
-                                        // Navigasi ke halaman detail absensi (bisa diimplementasikan nanti)
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('Menampilkan semua absensi')),
-                                        );
-                                      },
-                                      child: Text(
-                                        'Lihat Semua',
-                                        style: TextStyle(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                _buildAbsensiSummary(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      userName,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  onPressed: () => _refreshIndicatorKey.currentState?.show(),
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                  style: IconButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primaryContainer,
+                    foregroundColor: theme.colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Tanggal hari ini
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_today, color: theme.colorScheme.primary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    _adminData['tanggal'] ?? '-',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Menu navigasi cepat
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Menu Cepat',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildQuickMenuButton(
+                      context,
+                      'Absensi',
+                      Icons.assignment_turned_in,
+                      Colors.green,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const AbsensiAdminScreen()),
+                      ),
+                    ),
+                    _buildQuickMenuButton(
+                      context,
+                      'Guru',
+                      Icons.people,
+                      Colors.blue,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const ManajemenGuruScreen()),
+                      ),
+                    ),
+                    _buildQuickMenuButton(
+                      context,
+                      'Rekap',
+                      Icons.bar_chart,
+                      Colors.orange,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const DashboardAdminScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Statistik absensi hari ini
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.secondary,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: theme.colorScheme.primary.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Absensi Hari Ini',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildStatItem(
+                        'Hadir', 
+                        _adminData['totalHadir']?.toString() ?? '0', 
+                        Icons.check_circle,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        'Izin', 
+                        _adminData['totalIzin']?.toString() ?? '0', 
+                        Icons.assignment_late,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        'Sakit', 
+                        _adminData['totalSakit']?.toString() ?? '0', 
+                        Icons.healing,
+                      ),
+                    ),
+                    Expanded(
+                      child: _buildStatItem(
+                        'Alpa', 
+                        _adminData['totalAlpa']?.toString() ?? '0', 
+                        Icons.cancel,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        
+        // Info Total Guru & Belum Absen
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.people, color: theme.colorScheme.primary, size: 24),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Total Guru',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _adminData['totalGuru']?.toString() ?? '0',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 60,
+                  width: 1,
+                  color: Colors.grey[300],
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.person_off, color: Colors.red, size: 24),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Belum Absen',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _adminData['belumAbsen']?.toString() ?? '0',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickMenuButton(
+    BuildContext context, 
+    String label, 
+    IconData icon, 
+    Color color, 
+    VoidCallback onTap
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              icon,
+              color: color,
+              size: 30,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -694,6 +823,303 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           },
         ),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context); // Diperlukan untuk AutomaticKeepAliveClientMixin
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+    final theme = Theme.of(context);
+    final isAdmin = user != null && user.role == 'ADMINISTRASI';
+
+    return Scaffold(
+      body: RefreshIndicator(
+        key: _refreshIndicatorKey,
+        onRefresh: _handleRefresh,
+        child: _isLoading
+            ? _buildSkeletonLoading()
+            : _errorMessage.isNotEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          _errorMessage,
+                          style: const TextStyle(color: Colors.red),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: _loadData,
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  )
+                : SafeArea(
+                    child: isAdmin 
+                      ? _buildAdminDashboard(context, user?.name ?? user?.username ?? 'Admin')
+                      : CustomScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            // Header dengan refresh action
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Selamat Datang,',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                        Text(
+                                          '${user?.name ?? user?.username ?? 'Pengguna'}',
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: theme.colorScheme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    IconButton(
+                                      onPressed: () => _refreshIndicatorKey.currentState?.show(),
+                                      icon: const Icon(Icons.refresh),
+                                      tooltip: 'Refresh',
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: theme.colorScheme.primaryContainer,
+                                        foregroundColor: theme.colorScheme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // Statistik absensi
+                            SliverToBoxAdapter(
+                              child: Hero(
+                                tag: 'rekap-card',
+                                child: Material(
+                                  type: MaterialType.transparency,
+                                  child: Container(
+                                    margin: const EdgeInsets.all(20),
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          theme.colorScheme.primary,
+                                          theme.colorScheme.secondary,
+                                        ],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: theme.colorScheme.primary.withOpacity(0.3),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Rekap Bulan ${_getCurrentMonthYear()}',
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 20),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildStatItem('Hadir', _rekapData['totalHadir']?.toString() ?? '0', Icons.check_circle),
+                                            ),
+                                            Expanded(
+                                              child: _buildStatItem('Izin', _rekapData['totalIzin']?.toString() ?? '0', Icons.assignment_late),
+                                            ),
+                                            Expanded(
+                                              child: _buildStatItem('Sakit', _rekapData['totalSakit']?.toString() ?? '0', Icons.healing),
+                                            ),
+                                            Expanded(
+                                              child: _buildStatItem('Alpa', _rekapData['totalAlpa']?.toString() ?? '0', Icons.cancel),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // Rata-rata waktu absensi
+                            SliverToBoxAdapter(
+                              child: Container(
+                                margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Rata-rata Waktu Absensi',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      children: [
+                                        Column(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.withOpacity(0.1),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.login, color: Colors.green),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'Jam Masuk',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _rekapData['avgJamMasuk'] ?? '00:00',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Container(
+                                          height: 60,
+                                          width: 1,
+                                          color: Colors.grey[300],
+                                        ),
+                                        Column(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red.withOpacity(0.1),
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: const Icon(Icons.logout, color: Colors.red),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            const Text(
+                                              'Jam Pulang',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              _rekapData['avgJamPulang'] ?? '00:00',
+                                              style: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // Riwayat absensi terakhir
+                            SliverToBoxAdapter(
+                              child: Container(
+                                margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.05),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Riwayat Absensi',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            // Navigasi ke halaman detail absensi (bisa diimplementasikan nanti)
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('Menampilkan semua absensi')),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Lihat Semua',
+                                            style: TextStyle(
+                                              color: theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    _buildAbsensiSummary(),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                  ),
+      ),
     );
   }
 } 

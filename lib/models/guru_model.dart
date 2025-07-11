@@ -21,14 +21,14 @@ class Guru {
 
   factory Guru.fromJson(Map<String, dynamic> json) {
     return Guru(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       nama: json['nama'] ?? '',
-      nip: json['nip'] ?? '',
+      nip: json['nip']?.toString() ?? '',
       jenisKelamin: json['jenisKelamin'],
       alamat: json['alamat'],
       noTelp: json['noTelp'],
       email: json['email'],
-      mapel: json['mapel'],
+      mapel: json['mataPelajaran']?.toString() ?? json['mapel']?.toString(),
     );
   }
 
