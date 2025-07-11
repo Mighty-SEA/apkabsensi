@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:logger/logger.dart';
 import '../models/user_model.dart';
 import '../models/guru_model.dart';
 import '../models/absensi_model.dart';
@@ -11,16 +15,41 @@ class ApiService {
   // Ganti dengan URL API Anda
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
-  static const String baseUrl = 'http://192.168.100.9:3000/api'; // Menggunakan 10.0.2.2 untuk emulator Android
+  static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
   
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
   
   // Endpoint untuk autentikasi
   static const String loginEndpoint = '/auth/login';
+  static const String refreshTokenEndpoint = '/auth/refresh';
   static const String testTokenEndpoint = '/test-token';
   static const String guruEndpoint = '/guru';
   static const String absensiEndpoint = '/absensi';
+
+  // Timeout dan jumlah retry
+  static const Duration _requestTimeout = Duration(seconds: 15);
+  static const int _maxRetries = 3;
+
+  // Cache storage
+  final Map<String, _CachedResponse> _cache = {};
+  
+  // Logger
+  final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 0,
+      errorMethodCount: 5,
+      lineLength: 50,
+      colors: true,
+      printEmojis: true,
+      printTime: false,
+    ),
+  );
+
+  // Singleton pattern
+  static final ApiService _instance = ApiService._internal();
+  factory ApiService() => _instance;
+  ApiService._internal();
 
   // Menyimpan token ke SharedPreferences
   Future<void> saveToken(String token) async {
@@ -55,10 +84,95 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('user');
+    // Bersihkan cache saat logout
+    _cache.clear();
+  }
+
+  // Cek konektivitas
+  Future<bool> hasInternetConnection() async {
+    try {
+      var connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        return false;
+      }
+      
+      // Tambahan pengecekan dengan ping ke DNS Google
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+      return false;
+    } on SocketException catch (_) {
+      return false;
+    } catch (e) {
+      _logger.e('Error checking internet connection: $e');
+      return false;
+    }
+  }
+
+  // Refresh token
+  Future<bool> refreshToken() async {
+    try {
+      final currentToken = await getToken();
+      if (currentToken == null) return false;
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl$refreshTokenEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $currentToken',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['token'] != null) {
+          await saveToken(data['token']);
+          return true;
+        }
+      }
+      return false;
+    } catch (e) {
+      _logger.e('Error refreshing token: $e');
+      return false;
+    }
+  }
+
+  // Memeriksa koneksi server
+  Future<Map<String, dynamic>> checkServerConnection() async {
+    if (!await hasInternetConnection()) {
+      return {'success': false, 'message': 'Tidak ada koneksi internet'};
+    }
+    
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/test-token'),
+      ).timeout(_requestTimeout);
+      
+      return {
+        'success': response.statusCode >= 200 && response.statusCode < 300,
+        'message': response.statusCode >= 200 && response.statusCode < 300 
+            ? 'Koneksi ke server berhasil' 
+            : 'Koneksi ke server gagal dengan kode ${response.statusCode}'
+      };
+    } catch (e) {
+      _logger.e('Error checking server connection: $e');
+      String errorMessage = 'Tidak dapat terhubung ke server';
+      if (e is SocketException) {
+        errorMessage = 'Server tidak dapat dijangkau. Periksa alamat dan port server.';
+      } else if (e is TimeoutException) {
+        errorMessage = 'Koneksi ke server timeout. Server mungkin lambat atau tidak responsif.';
+      }
+      return {'success': false, 'message': errorMessage};
+    }
   }
 
   // Login
   Future<Map<String, dynamic>> login(String username, String password) async {
+    if (!await hasInternetConnection()) {
+      return {'success': false, 'message': 'Tidak ada koneksi internet'};
+    }
+
     // Menggunakan mock data jika flag useMockData diaktifkan
     if (useMockData) {
       final mockResponse = ApiMock.mockLoginResponse(username: username, password: password);
@@ -85,9 +199,7 @@ class ApiService {
 
     // Menggunakan API jika tidak menggunakan mock data
     try {
-      print('Mencoba login ke: $baseUrl$loginEndpoint');
-      print('Username: $username');
-      print('Password: ${"*" * password.length}');
+      _logger.i('Trying login for user: $username');
       
       final response = await http.post(
         Uri.parse('$baseUrl$loginEndpoint'),
@@ -96,17 +208,16 @@ class ApiService {
           'username': username,
           'password': password,
         }),
-      );
+      ).timeout(_requestTimeout);
 
-      print('Status code: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      _logger.d('Login response status: ${response.statusCode}');
       
       final Map<String, dynamic> responseData;
       try {
         responseData = jsonDecode(response.body);
       } catch (e) {
-        print('Error parsing JSON: $e');
-        return {'success': false, 'message': 'Format respons tidak valid: ${response.body}'};
+        _logger.e('Error parsing JSON: $e');
+        return {'success': false, 'message': 'Format respons tidak valid'};
       }
       
       if (response.statusCode == 200) {
@@ -125,72 +236,171 @@ class ApiService {
             guruId: userData['guruId']?.toString() ?? userData['guru']?['id']?.toString(),
           );
           await saveUser(user);
+          
+          // Bersihkan cache setelah login berhasil
+          _cache.clear();
+          
           return {'success': true, 'data': responseData};
         } else {
           return {'success': false, 'message': 'Token tidak ditemukan dalam respons'};
         }
       } else {
         final errorMsg = responseData['error'] ?? responseData['message'] ?? 'Login gagal (${response.statusCode})';
+        
+        // Berikan pesan yang lebih spesifik untuk error 401 (Unauthorized)
+        if (response.statusCode == 401) {
+          return {'success': false, 'message': 'Username atau password salah. Silakan coba lagi.'};
+        }
+        
         return {'success': false, 'message': errorMsg};
       }
     } catch (e) {
-      print('Error saat login: $e');
+      _logger.e('Error during login: $e');
       String errorDetail = e.toString();
-      if (errorDetail.contains('SocketException')) {
+      if (e is SocketException) {
         return {'success': false, 'message': 'Tidak dapat terhubung ke server. Pastikan server berjalan dan URL API benar.'};
-      } else if (errorDetail.contains('Connection refused')) {
-        return {'success': false, 'message': 'Koneksi ditolak. Server mungkin tidak berjalan atau alamat IP/port salah.'};
+      } else if (e is TimeoutException) {
+        return {'success': false, 'message': 'Koneksi timeout. Server mungkin lambat atau tidak responsif.'};
       } else {
-        return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+        return {'success': false, 'message': 'Terjadi kesalahan: $errorDetail'};
       }
     }
   }
 
-  // Fungsi untuk mendapatkan data dengan token
-  Future<Map<String, dynamic>> fetchWithToken(String endpoint) async {
+  // Verifikasi token masih valid
+  Future<Map<String, dynamic>> testToken() async {
+    return await _fetchWithRetry(testTokenEndpoint, useCache: false);
+  }
+
+  // Fungsi untuk mendapatkan data dengan token dan retry
+  Future<Map<String, dynamic>> _fetchWithRetry(
+    String endpoint, {
+    bool useCache = true,
+    Duration cacheDuration = const Duration(minutes: 5),
+    int retryCount = 0,
+  }) async {
+    // Memeriksa koneksi internet
+    if (!await hasInternetConnection()) {
+      // Jika tidak ada koneksi internet, coba ambil dari cache
+      if (useCache && _cache.containsKey(endpoint)) {
+        final cachedResponse = _cache[endpoint]!;
+        if (!cachedResponse.isExpired()) {
+          _logger.i('Using cached data for $endpoint (no internet)');
+          return cachedResponse.data;
+        }
+      }
+      return {'success': false, 'message': 'Tidak ada koneksi internet'};
+    }
+    
     // Memeriksa token terlebih dahulu
     final token = await getToken();
     if (token == null) {
       return {'success': false, 'message': 'Token tidak tersedia'};
     }
 
+    // Cek cache jika diaktifkan
+    if (useCache && _cache.containsKey(endpoint)) {
+      final cachedResponse = _cache[endpoint]!;
+      if (!cachedResponse.isExpired()) {
+        _logger.i('Using cached data for $endpoint');
+        return cachedResponse.data;
+      }
+    }
+
     // Menggunakan mock data jika flag useMockData diaktifkan
     if (useMockData) {
+      Map<String, dynamic> mockResponse;
       switch (endpoint) {
         case guruEndpoint:
-          return ApiMock.mockGuruData();
+          mockResponse = ApiMock.mockGuruData();
+          break;
         case absensiEndpoint:
-          return ApiMock.mockAbsensiData();
+          mockResponse = ApiMock.mockAbsensiData();
+          break;
         case testTokenEndpoint:
-          return ApiMock.mockTestToken();
+          mockResponse = ApiMock.mockTestToken();
+          break;
         default:
-          return {'success': false, 'message': 'Endpoint tidak tersedia di mock data'};
+          mockResponse = {'success': false, 'message': 'Endpoint tidak tersedia di mock data'};
       }
+      
+      if (useCache && mockResponse['success']) {
+        _cache[endpoint] = _CachedResponse(
+          mockResponse,
+          DateTime.now().add(cacheDuration),
+        );
+      }
+      return mockResponse;
     }
 
     // Menggunakan API jika tidak menggunakan mock data
     try {
+      _logger.d('Fetching from $endpoint');
       final response = await http.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-      );
+      ).timeout(_requestTimeout);
 
-      final responseData = jsonDecode(response.body);
+      Map<String, dynamic> responseData;
+      try {
+        responseData = jsonDecode(response.body);
+      } catch (e) {
+        _logger.e('Error parsing JSON for $endpoint: $e');
+        return {'success': false, 'message': 'Format respons tidak valid'};
+      }
       
       if (response.statusCode == 200) {
-        return {'success': true, 'data': responseData};
+        final result = {'success': true, 'data': responseData};
+        
+        // Simpan hasil ke cache jika perlu
+        if (useCache) {
+          _cache[endpoint] = _CachedResponse(
+            result,
+            DateTime.now().add(cacheDuration),
+          );
+        }
+        
+        return result;
+      } else if (response.statusCode == 401 && retryCount < _maxRetries) {
+        // Token mungkin kedaluwarsa, coba refresh dan coba lagi
+        _logger.w('Token expired, trying to refresh...');
+        if (await refreshToken()) {
+          return _fetchWithRetry(
+            endpoint,
+            useCache: useCache,
+            cacheDuration: cacheDuration,
+            retryCount: retryCount + 1,
+          );
+        } else {
+          return {'success': false, 'message': 'Token tidak valid dan tidak dapat diperbarui'};
+        }
       } else {
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Permintaan gagal',
+          'message': responseData['message'] ?? 'Permintaan gagal (${response.statusCode})',
         };
       }
     } catch (e) {
+      _logger.e('Error fetching from $endpoint: $e');
+      // Coba ambil dari cache jika ada error dan cache tersedia
+      if (useCache && _cache.containsKey(endpoint)) {
+        _logger.w('Using cached data due to error');
+        return _cache[endpoint]!.data;
+      }
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
+  }
+
+  // Wrapper untuk fetchWithToken yang memanggil _fetchWithRetry
+  Future<Map<String, dynamic>> fetchWithToken(
+    String endpoint, {
+    bool useCache = true,
+    Duration cacheDuration = const Duration(minutes: 5),
+  }) async {
+    return _fetchWithRetry(endpoint, useCache: useCache, cacheDuration: cacheDuration);
   }
 
   // Fungsi untuk mengirim data dengan token (POST)
@@ -348,66 +558,16 @@ class ApiService {
     }
   }
 
-  // Verifikasi token
-  Future<Map<String, dynamic>> testToken() async {
-    return fetchWithToken(testTokenEndpoint);
-  }
-  
-  // Memeriksa koneksi ke server
-  Future<Map<String, dynamic>> checkServerConnection() async {
-    try {
-      // Ambil URL server dari baseUrl
-      final uri = Uri.parse(baseUrl);
-      final serverUrl = '${uri.scheme}://${uri.host}:${uri.port}';
-      
-      print('Memeriksa koneksi ke server: $serverUrl');
-      
-      // Coba melakukan ping ke server
-      final response = await http.get(
-        Uri.parse('$serverUrl/api/test-token'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 5));
-      
-      print('Status respons: ${response.statusCode}');
-      
-      if (response.statusCode == 401) {
-        // Status 401 menandakan server berjalan tapi kita tidak terautentikasi
-        // Ini hasil yang diharapkan karena kita tidak menyediakan token
-        return {'success': true, 'message': 'Server merespons dengan benar (${response.statusCode})'};
-      } else if (response.statusCode >= 200 && response.statusCode < 500) {
-        // Status 2xx-4xx menandakan server merespons
-        return {'success': true, 'message': 'Server merespons dengan status ${response.statusCode}'};
-      } else {
-        // Status 5xx menandakan server error
-        return {'success': false, 'message': 'Server merespons tetapi terjadi error (${response.statusCode})'};
-      }
-    } catch (e) {
-      print('Error saat memeriksa koneksi: $e');
-      String errorDetail = e.toString();
-      
-      if (errorDetail.contains('SocketException')) {
-        return {
-          'success': false, 
-          'message': 'Tidak dapat terhubung ke server. Periksa URL API: $baseUrl\n\nDetail: Server tidak merespons atau alamat tidak dapat dijangkau.'
-        };
-      } else if (errorDetail.contains('Connection refused')) {
-        return {
-          'success': false, 
-          'message': 'Koneksi ditolak. Server mungkin tidak berjalan di alamat: $baseUrl'
-        };
-      } else if (errorDetail.contains('timed out')) {
-        return {
-          'success': false, 
-          'message': 'Koneksi timeout. Server mungkin lambat atau tidak merespons: $baseUrl'
-        };
-      } else {
-        return {'success': false, 'message': 'Terjadi kesalahan saat memeriksa koneksi: $e'};
+  // Mendapatkan data absensi
+  Future<Map<String, dynamic>> getAbsensiData({bool useCache = true}) async {
+    // Cek cache jika useCache == true
+    if (useCache && _cache.containsKey(absensiEndpoint)) {
+      final cachedData = _cache[absensiEndpoint];
+      if (cachedData != null && !cachedData.isExpired()) {
+        return cachedData.data;
       }
     }
-  }
-
-  // Mendapatkan data absensi
-  Future<Map<String, dynamic>> getAbsensiData() async {
+    
     // Jika menggunakan mock data
     if (useMockData) {
       return ApiMock.mockAbsensiData();
@@ -486,7 +646,14 @@ class ApiService {
           };
         }).toList();
         
-        return {'success': true, 'data': transformedData};
+        // Simpan hasil ke cache
+        final result = {'success': true, 'data': transformedData};
+        _cache[absensiEndpoint] = _CachedResponse(
+          result, 
+          DateTime.now().add(const Duration(minutes: 5))
+        );
+        
+        return result;
       } else {
         return {
           'success': false,
@@ -851,5 +1018,17 @@ class ApiService {
       print('Error saat mendapatkan rekap absensi: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
+  }
+} 
+
+// Class untuk mengelola data cache
+class _CachedResponse {
+  final Map<String, dynamic> data;
+  final DateTime expiryTime;
+
+  _CachedResponse(this.data, this.expiryTime);
+
+  bool isExpired() {
+    return DateTime.now().isAfter(expiryTime);
   }
 } 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 
@@ -7,6 +8,7 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String _errorMessage = '';
+  Timer? _refreshTimer;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
@@ -28,6 +30,9 @@ class AuthProvider extends ChangeNotifier {
         if (!result['success']) {
           // Token tidak valid, logout
           await logout();
+        } else {
+          // Token valid, mulai timer untuk refresh token secara periodik
+          _startRefreshTimer();
         }
       }
     } catch (e) {
@@ -37,6 +42,36 @@ class AuthProvider extends ChangeNotifier {
     
     _isLoading = false;
     notifyListeners();
+  }
+  
+  // Memulai timer untuk refresh token secara periodik
+  void _startRefreshTimer() {
+    // Batalkan timer sebelumnya jika ada
+    _refreshTimer?.cancel();
+    
+    // Set timer untuk refresh token setiap 15 menit
+    _refreshTimer = Timer.periodic(const Duration(minutes: 15), (timer) async {
+      if (_user != null) {
+        await _apiService.refreshToken();
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+  
+  // Refresh user state
+  Future<void> refreshUserState() async {
+    if (_user != null) {
+      final result = await _apiService.testToken();
+      if (!result['success']) {
+        // Token tidak valid, coba refresh
+        final refreshed = await _apiService.refreshToken();
+        if (!refreshed) {
+          // Jika refresh gagal, logout
+          await logout();
+        }
+      }
+    }
   }
 
   // Login
@@ -50,11 +85,14 @@ class AuthProvider extends ChangeNotifier {
       
       if (result['success']) {
         _user = await _apiService.getUser();
+        // Mulai timer untuk refresh token secara periodik
+        _startRefreshTimer();
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
         _errorMessage = result['message'];
+        print('Login error: $_errorMessage'); // Debug log
         _isLoading = false;
         notifyListeners();
         return false;
@@ -90,10 +128,20 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     
+    // Batalkan timer refresh token
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
+    
     await _apiService.logout();
     _user = null;
     
     _isLoading = false;
     notifyListeners();
+  }
+  
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 } 

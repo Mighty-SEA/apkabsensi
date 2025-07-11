@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import 'home_screen.dart';
+import 'main_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,25 +57,48 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       
       if (success && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       } else if (mounted) {
+        // Ambil pesan error dari provider dan tampilkan di UI
         setState(() {
           _errorMessage = authProvider.errorMessage;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authProvider.errorMessage),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+        // Tambahkan juga SnackBar untuk memastikan pesan terlihat
+        if (_errorMessage.contains('Username atau password salah')) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.person_off_rounded, color: Colors.white),
+                  const SizedBox(width: 10),
+                  const Expanded(child: Text('Username atau password salah. Silakan coba lagi.')),
+                ],
+              ),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(12),
+              duration: const Duration(seconds: 5),
             ),
-            margin: const EdgeInsets.all(12),
-            duration: const Duration(seconds: 5),
-          ),
-        );
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: const EdgeInsets.all(12),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
       }
     }
   }
@@ -217,7 +240,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       Icon(
                                         _errorMessage.contains('berhasil') 
                                             ? Icons.check_circle 
-                                            : Icons.error_outline_rounded,
+                                            : _errorMessage.contains('Username atau password salah')
+                                                ? Icons.person_off_rounded
+                                                : Icons.error_outline_rounded,
                                         color: _errorMessage.contains('berhasil') 
                                             ? Colors.green 
                                             : theme.colorScheme.error,
@@ -227,7 +252,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                         child: Text(
                                           _errorMessage.contains('berhasil') 
                                               ? 'Status Server' 
-                                              : 'Error',
+                                              : _errorMessage.contains('Username atau password salah')
+                                                  ? 'Login Gagal'
+                                                  : 'Error',
                                           style: TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: _errorMessage.contains('berhasil') 
@@ -239,7 +266,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                     ],
                                   ),
                                   const SizedBox(height: 8),
-                                  Text(_errorMessage),
+                                  Text(
+                                    _errorMessage,
+                                    style: TextStyle(
+                                      color: _errorMessage.contains('berhasil')
+                                          ? Colors.green.shade700
+                                          : theme.colorScheme.error,
+                                    ),
+                                  ),
+                                  if (_errorMessage.contains('Username atau password salah'))
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8.0),
+                                      child: Text(
+                                        'Pastikan Anda memasukkan username dan password dengan benar.',
+                                        style: TextStyle(
+                                          fontStyle: FontStyle.italic,
+                                          fontSize: 13,
+                                          color: theme.colorScheme.error,
+                                        ),
+                                      ),
+                                    ),
                                   if (!_errorMessage.contains('berhasil'))
                                     Align(
                                       alignment: Alignment.centerRight,

@@ -15,6 +15,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateMixin {
+  // Memastikan _selectedIndex selalu dimulai dengan 0 (Beranda)
   int _selectedIndex = 0;
   late AnimationController _animationController;
   
@@ -31,6 +32,12 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    // Memulai animasi saat halaman pertama kali dibuka
+    _animationController.forward();
+    // Memastikan tab Beranda yang aktif
+    setState(() {
+      _selectedIndex = 0;
+    });
   }
 
   @override

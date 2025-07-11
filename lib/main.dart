@@ -4,25 +4,39 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
+import 'services/api_service.dart';
 
-void main() {
-  // Inisialisasi locale untuk bahasa Indonesia
-  initializeDateFormatting('id_ID', null).then((_) {
-    Intl.defaultLocale = 'id_ID';
-    
-    // Mengatur warna statusbar dan navbar di seluruh aplikasi
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.white,
-      statusBarIconBrightness: Brightness.dark,
-      systemNavigationBarColor: Colors.white,
-      systemNavigationBarIconBrightness: Brightness.dark,
-    ));
-    
-    runApp(const MyApp());
-  });
+void main() async {
+  // Pastikan binding Flutter sudah diinisialisasi
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Preload assets dan konfigurasi
+  await Future.wait([
+    initializeDateFormatting('id_ID', null),
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]),
+  ]);
+  
+  // Konfigurasi cache untuk performa lebih baik
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100MB
+  
+  // Mengatur warna statusbar dan navbar di seluruh aplikasi
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.white,
+    statusBarIconBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.white,
+    systemNavigationBarIconBrightness: Brightness.dark,
+  ));
+  
+  Intl.defaultLocale = 'id_ID';
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -59,7 +73,6 @@ class MyApp extends StatelessWidget {
                   elevation: 0,
                   centerTitle: true,
                 ),
-                // Menggunakan properti card langsung di ThemeData
                 cardColor: Colors.white,
                 elevatedButtonTheme: ElevatedButtonThemeData(
                   style: ElevatedButton.styleFrom(
@@ -127,16 +140,57 @@ class MyApp extends StatelessWidget {
                 scaffoldBackgroundColor: Colors.white,
               ),
               home: authProvider.isLoading
-                  ? const Scaffold(
-                      body: Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
+                  ? const SplashScreen()
                   : authProvider.isAuthenticated
                       ? const MainScreen()
                       : const LoginScreen(),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Logo aplikasi
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.school_rounded,
+                size: 80,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            
+            // Judul aplikasi
+            Text(
+              'Aplikasi Absensi',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            const CircularProgressIndicator(),
+          ],
         ),
       ),
     );
@@ -152,14 +206,32 @@ class InitializerWidget extends StatefulWidget {
   State<InitializerWidget> createState() => _InitializerWidgetState();
 }
 
-class _InitializerWidgetState extends State<InitializerWidget> {
+class _InitializerWidgetState extends State<InitializerWidget> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Menginisialisasi authProvider di initState, bukan di build
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<AuthProvider>(context, listen: false).initialize();
     });
+  }
+  
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh token saat aplikasi dibuka kembali
+      if (mounted) {
+        final apiService = Provider.of<AuthProvider>(context, listen: false);
+        apiService.refreshUserState();
+      }
+    }
   }
 
   @override
