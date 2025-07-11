@@ -8,6 +8,7 @@ import 'profile_screen.dart';
 import 'login_screen.dart';
 import 'absensi_admin_screen.dart';
 import 'rekap_absensi_screen.dart';
+import 'manajemen_gaji_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -80,6 +81,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
         const HomeScreen(),
         const AbsensiAdminScreen(),
         const RekapAbsensiScreen(),
+        const ManajemenGajiScreen(),
         const ProfileScreen(),
       ];
       
@@ -98,7 +100,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           label: 'Rekap',
         ),
         BottomNavigationBarItem(
-          icon: Icon(_selectedIndex == 3 ? Icons.person : Icons.person_outlined),
+          icon: Icon(_selectedIndex == 3 ? Icons.monetization_on : Icons.monetization_on_outlined),
+          label: 'Gaji',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(_selectedIndex == 4 ? Icons.person : Icons.person_outlined),
           label: 'Profil',
         ),
       ];

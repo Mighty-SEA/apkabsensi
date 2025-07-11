@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'pengaturan_gaji_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -56,6 +57,21 @@ class ProfileScreen extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            if (user?.role == 'ADMINISTRASI') 
+                              IconButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const PengaturanGajiScreen()),
+                                  );
+                                },
+                                icon: const Icon(
+                                  Icons.monetization_on,
+                                  color: Colors.white,
+                                ),
+                                tooltip: 'Pengaturan Gaji',
+                              ),
+                            const SizedBox(width: 8),
                             IconButton(
                               onPressed: () {},
                               icon: const Icon(

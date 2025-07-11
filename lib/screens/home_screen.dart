@@ -9,6 +9,7 @@ import 'dashboard_admin_screen.dart';
 import 'absensi_admin_screen.dart';
 import 'manajemen_guru_screen.dart';
 import 'rekap_absensi_screen.dart';
+import 'manajemen_gaji_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -428,7 +429,9 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       Colors.green,
                       () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const AbsensiAdminScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const AbsensiAdminScreen(),
+                        ),
                       ),
                     ),
                     _buildQuickMenuButton(
@@ -438,17 +441,33 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                       Colors.blue,
                       () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const ManajemenGuruScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const ManajemenGuruScreen(),
+                        ),
                       ),
                     ),
                     _buildQuickMenuButton(
                       context,
                       'Rekap',
-                      Icons.bar_chart,
+                      Icons.summarize,
+                      Colors.purple,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const RekapAbsensiScreen(),
+                        ),
+                      ),
+                    ),
+                    _buildQuickMenuButton(
+                      context,
+                      'Gaji',
+                      Icons.monetization_on,
                       Colors.orange,
                       () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const RekapAbsensiScreen()),
+                        MaterialPageRoute(
+                          builder: (context) => const ManajemenGajiScreen(),
+                        ),
                       ),
                     ),
                   ],

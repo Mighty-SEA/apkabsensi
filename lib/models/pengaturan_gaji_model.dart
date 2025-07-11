@@ -1,0 +1,142 @@
+class PengaturanGaji {
+  final String id;
+  final int gajiPokok;
+  final int potonganIzin;
+  final int potonganSakit;
+  final int potonganAlpa;
+  final bool isGlobal;
+  final String? guruId;
+  
+  PengaturanGaji({
+    required this.id,
+    required this.gajiPokok,
+    required this.potonganIzin,
+    required this.potonganSakit,
+    required this.potonganAlpa,
+    required this.isGlobal,
+    this.guruId,
+  });
+  
+  factory PengaturanGaji.fromJson(Map<String, dynamic> json) {
+    return PengaturanGaji(
+      id: json['id'] ?? '',
+      gajiPokok: json['gajiPokok'] ?? 0,
+      potonganIzin: json['potonganIzin'] ?? 0,
+      potonganSakit: json['potonganSakit'] ?? 0,
+      potonganAlpa: json['potonganAlpa'] ?? 0,
+      isGlobal: json['isGlobal'] ?? true,
+      guruId: json['guruId'],
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'gajiPokok': gajiPokok,
+      'potonganIzin': potonganIzin,
+      'potonganSakit': potonganSakit,
+      'potonganAlpa': potonganAlpa,
+      'isGlobal': isGlobal,
+      'guruId': guruId,
+    };
+  }
+  
+  // Untuk menampilkan format rupiah
+  String formatRupiah(int nominal) {
+    return 'Rp${nominal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+  }
+  
+  String get gajiPokokFormatted => formatRupiah(gajiPokok);
+  String get potonganIzinFormatted => formatRupiah(potonganIzin);
+  String get potonganSakitFormatted => formatRupiah(potonganSakit);
+  String get potonganAlpaFormatted => formatRupiah(potonganAlpa);
+}
+
+class GajiGuru {
+  final String id;
+  final String guruId;
+  final String namaGuru;
+  final String periode; // Format: YYYY-MM
+  final int gajiPokok;
+  final int potonganIzin;
+  final int potonganSakit;
+  final int potonganAlpa;
+  final int jumlahHadir;
+  final int jumlahIzin;
+  final int jumlahSakit;
+  final int jumlahAlpa;
+  final int totalPotongan;
+  final int totalGaji;
+  final bool sudahDibayar;
+  final String? tanggalPembayaran;
+  
+  GajiGuru({
+    required this.id,
+    required this.guruId,
+    required this.namaGuru,
+    required this.periode,
+    required this.gajiPokok,
+    required this.potonganIzin,
+    required this.potonganSakit,
+    required this.potonganAlpa,
+    required this.jumlahHadir,
+    required this.jumlahIzin,
+    required this.jumlahSakit,
+    required this.jumlahAlpa,
+    required this.totalPotongan,
+    required this.totalGaji,
+    required this.sudahDibayar,
+    this.tanggalPembayaran,
+  });
+  
+  factory GajiGuru.fromJson(Map<String, dynamic> json) {
+    return GajiGuru(
+      id: json['id'] ?? '',
+      guruId: json['guruId'] ?? '',
+      namaGuru: json['namaGuru'] ?? '',
+      periode: json['periode'] ?? '',
+      gajiPokok: json['gajiPokok'] ?? 0,
+      potonganIzin: json['potonganIzin'] ?? 0,
+      potonganSakit: json['potonganSakit'] ?? 0,
+      potonganAlpa: json['potonganAlpa'] ?? 0,
+      jumlahHadir: json['jumlahHadir'] ?? 0,
+      jumlahIzin: json['jumlahIzin'] ?? 0,
+      jumlahSakit: json['jumlahSakit'] ?? 0,
+      jumlahAlpa: json['jumlahAlpa'] ?? 0,
+      totalPotongan: json['totalPotongan'] ?? 0,
+      totalGaji: json['totalGaji'] ?? 0,
+      sudahDibayar: json['sudahDibayar'] ?? false,
+      tanggalPembayaran: json['tanggalPembayaran'],
+    );
+  }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'guruId': guruId,
+      'namaGuru': namaGuru,
+      'periode': periode,
+      'gajiPokok': gajiPokok,
+      'potonganIzin': potonganIzin,
+      'potonganSakit': potonganSakit,
+      'potonganAlpa': potonganAlpa,
+      'jumlahHadir': jumlahHadir,
+      'jumlahIzin': jumlahIzin,
+      'jumlahSakit': jumlahSakit,
+      'jumlahAlpa': jumlahAlpa,
+      'totalPotongan': totalPotongan,
+      'totalGaji': totalGaji,
+      'sudahDibayar': sudahDibayar,
+      'tanggalPembayaran': tanggalPembayaran,
+    };
+  }
+  
+  // Untuk menampilkan format rupiah
+  String formatRupiah(int nominal) {
+    return 'Rp${nominal.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
+  }
+  
+  String get gajiPokokFormatted => formatRupiah(gajiPokok);
+  String get totalPotonganFormatted => formatRupiah(totalPotongan);
+  String get totalGajiFormatted => formatRupiah(totalGaji);
+} 

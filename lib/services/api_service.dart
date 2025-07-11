@@ -8,6 +8,7 @@ import 'package:logger/logger.dart';
 import '../models/user_model.dart';
 import '../models/guru_model.dart';
 import '../models/absensi_model.dart';
+import '../models/pengaturan_gaji_model.dart';
 import '../utils/api_mock.dart';
 import 'package:intl/intl.dart';
 
@@ -26,6 +27,8 @@ class ApiService {
   static const String testTokenEndpoint = '/test-token';
   static const String guruEndpoint = '/guru';
   static const String absensiEndpoint = '/absensi';
+  static const String pengaturanGajiEndpoint = '/pengaturan-gaji';
+  static const String gajiGuruEndpoint = '/gaji';
 
   // Timeout dan jumlah retry
   static const Duration _requestTimeout = Duration(seconds: 15);
@@ -1351,6 +1354,391 @@ class ApiService {
       }
     } catch (e) {
       _logger.e('Error updating absensi status: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // ===== PENGATURAN GAJI =====
+  
+  // Mendapatkan pengaturan gaji global
+  Future<Map<String, dynamic>> getPengaturanGajiGlobal() async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl$pengaturanGajiEndpoint/global'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['pengaturanGaji']};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil pengaturan gaji: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching global salary settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Mendapatkan pengaturan gaji untuk guru tertentu
+  Future<Map<String, dynamic>> getPengaturanGajiGuru(String guruId) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl$pengaturanGajiEndpoint/guru/$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['pengaturanGaji']};
+      } else if (response.statusCode == 404) {
+        // Jika tidak ada pengaturan khusus, kembalikan pengaturan global
+        return getPengaturanGajiGlobal();
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil pengaturan gaji: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching teacher salary settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menyimpan pengaturan gaji global
+  Future<Map<String, dynamic>> simpanPengaturanGajiGlobal(Map<String, dynamic> data) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$pengaturanGajiEndpoint/global'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return {'success': true, 'data': responseData['pengaturanGaji'], 'message': 'Pengaturan gaji global berhasil disimpan'};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menyimpan pengaturan gaji global',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error saving global salary settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menyimpan pengaturan gaji untuk guru tertentu
+  Future<Map<String, dynamic>> simpanPengaturanGajiGuru(String guruId, Map<String, dynamic> data) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$pengaturanGajiEndpoint/guru/$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return {'success': true, 'data': responseData['pengaturanGaji'], 'message': 'Pengaturan gaji guru berhasil disimpan'};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menyimpan pengaturan gaji guru',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error saving teacher salary settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menghapus pengaturan gaji guru (kembali ke global)
+  Future<Map<String, dynamic>> hapusPengaturanGajiGuru(String guruId) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.delete(
+        Uri.parse('$baseUrl$pengaturanGajiEndpoint/guru/$guruId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': 'Pengaturan gaji guru berhasil dihapus'};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menghapus pengaturan gaji guru',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error deleting teacher salary settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // ===== GAJI GURU =====
+  
+  // Mendapatkan daftar gaji guru
+  Future<Map<String, dynamic>> getDaftarGajiGuru({String? periode, String? guruId}) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+      
+      // Build query params
+      final queryParams = <String, String>{};
+      if (periode != null) {
+        queryParams['periode'] = periode;
+      }
+      if (guruId != null) {
+        queryParams['guruId'] = guruId;
+      }
+      
+      final Uri uri = Uri.parse('$baseUrl$gajiGuruEndpoint').replace(queryParameters: queryParams);
+
+      final response = await _client.get(
+        uri,
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['gajiGuru'] ?? []};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil data gaji guru: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching teacher salary data: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Mendapatkan detail gaji guru
+  Future<Map<String, dynamic>> getDetailGajiGuru(String gajiId) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl$gajiGuruEndpoint/$gajiId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['gajiGuru']};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengambil detail gaji guru: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching teacher salary detail: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menghitung gaji guru untuk periode tertentu
+  Future<Map<String, dynamic>> hitungGajiGuru(String guruId, String periode) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$gajiGuruEndpoint/hitung'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'guruId': guruId,
+          'periode': periode,
+        }),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['gajiGuru']};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menghitung gaji guru',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error calculating teacher salary: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menghitung semua gaji guru untuk periode tertentu
+  Future<Map<String, dynamic>> hitungSemuaGajiGuru(String periode) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$gajiGuruEndpoint/hitung-semua'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'periode': periode,
+        }),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['gajiGuru'] ?? [], 'message': 'Berhasil menghitung gaji semua guru'};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menghitung gaji semua guru',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error calculating all teachers\' salaries: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+  
+  // Menandai gaji sudah dibayar
+  Future<Map<String, dynamic>> bayarGajiGuru(String gajiId) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      final response = await _client.put(
+        Uri.parse('$baseUrl$gajiGuruEndpoint/$gajiId/bayar'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'tanggalPembayaran': DateTime.now().toIso8601String(),
+        }),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['gajiGuru'], 'message': 'Gaji guru berhasil dibayar'};
+      } else {
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['message'] ?? 'Gagal menandai gaji sebagai dibayar',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error marking salary as paid: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
