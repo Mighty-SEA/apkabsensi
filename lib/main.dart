@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -26,6 +27,7 @@ void main() async {
   
   // Konfigurasi cache untuk performa lebih baik
   PaintingBinding.instance.imageCache.maximumSizeBytes = 1024 * 1024 * 100; // 100MB
+  PaintingBinding.instance.imageCache.maximumSize = 500;
   
   // Mengatur warna statusbar dan navbar di seluruh aplikasi
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -35,6 +37,7 @@ void main() async {
     systemNavigationBarIconBrightness: Brightness.dark,
   ));
   
+  // Set locale untuk format tanggal
   Intl.defaultLocale = 'id_ID';
   runApp(const MyApp());
 }
@@ -54,6 +57,26 @@ class MyApp extends StatelessWidget {
             return MaterialApp(
               title: 'Aplikasi Absensi',
               debugShowCheckedModeBanner: false,
+              // Optimalkan performa dengan builder
+              builder: (context, child) {
+                // Tambahkan scrollbehavior global untuk scrolling yang smooth
+                final scrollBehavior = ScrollConfiguration.of(context).copyWith(
+                  physics: const BouncingScrollPhysics(),
+                  scrollbars: false,
+                );
+                
+                // Pastikan text scaling tidak terlalu besar
+                final mediaQuery = MediaQuery.of(context);
+                final scale = mediaQuery.textScaleFactor.clamp(0.85, 1.15);
+                
+                return MediaQuery(
+                  data: mediaQuery.copyWith(textScaleFactor: scale),
+                  child: ScrollConfiguration(
+                    behavior: scrollBehavior,
+                    child: child!,
+                  ),
+                );
+              },
               theme: ThemeData(
                 useMaterial3: true,
                 colorScheme: ColorScheme.fromSeed(

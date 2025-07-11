@@ -65,13 +65,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           _errorMessage = '';
         });
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainScreen()),
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const MainScreen(),
+            transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+            transitionDuration: const Duration(milliseconds: 250),
+          ),
         );
       } else if (mounted) {
         setState(() {
           _errorMessage = authProvider.errorMessage;
         });
-        // SnackBar hanya untuk error selain username/password salah
         if (!_errorMessage.contains('Username atau password salah')) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -129,148 +132,30 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       ),
       child: Scaffold(
         backgroundColor: Colors.white,
+        resizeToAvoidBottomInset: true,
         body: SafeArea(
           child: Stack(
             children: [
-              // Background
-              Positioned(
-                top: -size.width * 0.3,
-                right: -size.width * 0.3,
-                child: Container(
-                  width: size.width * 0.8,
-                  height: size.width * 0.8,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: -size.width * 0.4,
-                left: -size.width * 0.2,
-                child: Container(
-                  width: size.width * 0.7,
-                  height: size.width * 0.7,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              // Main content
+              const _LoginBackground(),
               Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Logo
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.school_rounded,
-                              size: 80,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          // Judul
-                          Text(
-                            'Aplikasi Absensi',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Subtitle
-                          Text(
-                            'Masuk untuk melanjutkan',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: theme.colorScheme.onBackground.withOpacity(0.7),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-                          // Username
-                          TextFormField(
-                            controller: _usernameController,
-                            decoration: InputDecoration(
-                              labelText: 'Username',
-                              hintText: 'Masukkan username Anda',
-                              prefixIcon: const Icon(Icons.person_rounded),
-                              enabledBorder: isLoginError
-                                  ? OutlineInputBorder(
-                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
-                                    )
-                                  : null,
-                              focusedBorder: isLoginError
-                                  ? OutlineInputBorder(
-                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
-                                    )
-                                  : null,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Username tidak boleh kosong';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          // Password
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              hintText: 'Masukkan password Anda',
-                              prefixIcon: const Icon(Icons.lock_rounded),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_rounded
-                                      : Icons.visibility_off_rounded,
-                                ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                              enabledBorder: isLoginError
-                                  ? OutlineInputBorder(
-                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
-                                    )
-                                  : null,
-                              focusedBorder: isLoginError
-                                  ? OutlineInputBorder(
-                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
-                                    )
-                                  : null,
-                            ),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Password tidak boleh kosong';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 32),
-                          // Tombol login
-                          Consumer<AuthProvider>(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      child: FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _LoginForm(
+                          formKey: _formKey,
+                          usernameController: _usernameController,
+                          passwordController: _passwordController,
+                          obscurePassword: _obscurePassword,
+                          onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                          isLoginError: isLoginError,
+                          errorMessage: _errorMessage,
+                          clearError: _clearError,
+                          loginButton: Consumer<AuthProvider>(
                             builder: (context, auth, child) {
                               return SizedBox(
                                 height: 48,
@@ -316,87 +201,288 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               );
                             },
                           ),
-                          // Pesan error SELALU di bawah tombol login
-                          if (_errorMessage.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 20.0),
-                              child: Container(
-                                padding: const EdgeInsets.all(14),
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.error.withOpacity(0.08),
-                                  border: Border.all(color: theme.colorScheme.error, width: 1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      isLoginError ? Icons.person_off_rounded : Icons.error_outline_rounded,
-                                      color: theme.colorScheme.error,
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            isLoginError ? 'Login Gagal' : 'Error',
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            _errorMessage,
-                                            style: TextStyle(
-                                              color: theme.colorScheme.error,
-                                            ),
-                                          ),
-                                          if (isLoginError)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 4.0),
-                                              child: Text(
-                                                'Pastikan username dan password benar.',
-                                                style: TextStyle(
-                                                  fontStyle: FontStyle.italic,
-                                                  fontSize: 13,
-                                                  color: theme.colorScheme.error,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.close),
-                                      color: theme.colorScheme.error,
-                                      tooltip: 'Tutup',
-                                      onPressed: _clearError,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 24),
-                          // Bantuan
-                          Center(
-                            child: TextButton.icon(
-                              onPressed: _checkServerConnection,
-                              icon: const Icon(Icons.help_outline_rounded),
-                              label: const Text('Masalah koneksi?'),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _LoginBackground extends StatelessWidget {
+  const _LoginBackground();
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
+    return Stack(
+      children: [
+        Positioned(
+          top: -size.width * 0.3,
+          right: -size.width * 0.3,
+          child: const RepaintBoundary(
+            child: _CircleBackground(radius: 0.8, colorKey: 'primary'),
+          ),
+        ),
+        Positioned(
+          bottom: -size.width * 0.4,
+          left: -size.width * 0.2,
+          child: const RepaintBoundary(
+            child: _CircleBackground(radius: 0.7, colorKey: 'secondary'),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CircleBackground extends StatelessWidget {
+  final double radius;
+  final String colorKey;
+  const _CircleBackground({required this.radius, required this.colorKey});
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final theme = Theme.of(context);
+    final color = colorKey == 'primary'
+        ? theme.colorScheme.primary.withOpacity(0.1)
+        : theme.colorScheme.secondary.withOpacity(0.1);
+    return Container(
+      width: size.width * radius,
+      height: size.width * radius,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+}
+
+class _LoginForm extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController usernameController;
+  final TextEditingController passwordController;
+  final bool obscurePassword;
+  final VoidCallback onTogglePassword;
+  final bool isLoginError;
+  final String errorMessage;
+  final VoidCallback clearError;
+  final Widget loginButton;
+  const _LoginForm({
+    required this.formKey,
+    required this.usernameController,
+    required this.passwordController,
+    required this.obscurePassword,
+    required this.onTogglePassword,
+    required this.isLoginError,
+    required this.errorMessage,
+    required this.clearError,
+    required this.loginButton,
+  });
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Form(
+      key: formKey,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Logo
+          const Hero(
+            tag: 'app_logo',
+            child: RepaintBoundary(
+              child: _LogoWidget(),
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Judul
+          const Hero(
+            tag: 'app_title',
+            child: Material(
+              color: Colors.transparent,
+              child: Text(
+                'Aplikasi Absensi',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF4361EE),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Masuk untuk melanjutkan',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Color(0xFF6C757D),
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Username
+          TextFormField(
+            controller: usernameController,
+            decoration: InputDecoration(
+              labelText: 'Username',
+              hintText: 'Masukkan username Anda',
+              prefixIcon: const Icon(Icons.person_rounded),
+              enabledBorder: isLoginError
+                  ? OutlineInputBorder(
+                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+                    )
+                  : null,
+              focusedBorder: isLoginError
+                  ? OutlineInputBorder(
+                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
+                    )
+                  : null,
+            ),
+            textInputAction: TextInputAction.next,
+            keyboardType: TextInputType.text,
+            autocorrect: false,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Username tidak boleh kosong';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 20),
+          // Password
+          TextFormField(
+            controller: passwordController,
+            obscureText: obscurePassword,
+            decoration: InputDecoration(
+              labelText: 'Password',
+              hintText: 'Masukkan password Anda',
+              prefixIcon: const Icon(Icons.lock_rounded),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  obscurePassword
+                      ? Icons.visibility_rounded
+                      : Icons.visibility_off_rounded,
+                ),
+                onPressed: onTogglePassword,
+              ),
+              enabledBorder: isLoginError
+                  ? OutlineInputBorder(
+                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+                    )
+                  : null,
+              focusedBorder: isLoginError
+                  ? OutlineInputBorder(
+                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
+                    )
+                  : null,
+            ),
+            textInputAction: TextInputAction.done,
+            keyboardType: TextInputType.visiblePassword,
+            onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Password tidak boleh kosong';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 32),
+          // Tombol login
+          loginButton,
+          // Pesan error SELALU di bawah tombol login
+          if (errorMessage.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 20.0),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.error.withOpacity(0.08),
+                  border: Border.all(color: theme.colorScheme.error, width: 1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isLoginError ? Icons.person_off_rounded : Icons.error_outline_rounded,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isLoginError ? 'Login Gagal' : 'Error',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            errorMessage,
+                            style: TextStyle(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                          if (isLoginError)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 4.0),
+                              child: Text(
+                                'Pastikan username dan password benar.',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  fontSize: 13,
+                                  color: Color(0xFFE63946),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      color: theme.colorScheme.error,
+                      tooltip: 'Tutup',
+                      onPressed: clearError,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          const SizedBox(height: 24),
+          // Bantuan
+          Center(
+            child: TextButton.icon(
+              onPressed: () => FocusScope.of(context).unfocus(),
+              icon: const Icon(Icons.help_outline_rounded),
+              label: const Text('Masalah koneksi?'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LogoWidget extends StatelessWidget {
+  const _LogoWidget();
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Icon(
+      Icons.school_rounded,
+      size: 80,
+      color: theme.colorScheme.primary,
     );
   }
 } 

@@ -332,113 +332,15 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
         child: _isLoading
             ? _buildSkeletonLoading()
             : _errorMessage.isNotEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Text(
-                            _errorMessage,
-                            style: const TextStyle(color: Colors.red),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: _fetchAbsensiData,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Coba Lagi'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
+                ? _buildErrorView(theme)
                 : SafeArea(
                     child: CustomScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       slivers: [
                         // Tombol Absen
                         SliverToBoxAdapter(
-                          child: Container(
-                            margin: const EdgeInsets.all(20),
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: _isAbsenToday && _isAbsenPulangToday
-                                    ? [Colors.grey.shade300, Colors.grey.shade400]
-                                    : [
-                                        theme.colorScheme.primary,
-                                        theme.colorScheme.secondary,
-                                      ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (_isAbsenToday && _isAbsenPulangToday
-                                          ? Colors.grey
-                                          : theme.colorScheme.primary)
-                                      .withOpacity(0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  _isAbsenToday
-                                      ? _isAbsenPulangToday
-                                          ? 'Absensi Hari Ini Selesai'
-                                          : 'Absen Pulang'
-                                      : 'Absen Masuk',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                const SizedBox(height: 15),
-                                ElevatedButton.icon(
-                                  onPressed: _isAbsenToday && _isAbsenPulangToday
-                                      ? null
-                                      : _doAbsen,
-                                  icon: Icon(
-                                    _isAbsenToday
-                                        ? _isAbsenPulangToday
-                                            ? Icons.check_circle
-                                            : Icons.logout
-                                        : Icons.login,
-                                    size: 24,
-                                  ),
-                                  label: Text(
-                                    _isAbsenToday
-                                        ? _isAbsenPulangToday
-                                            ? 'Sudah Absen'
-                                            : 'Absen Pulang'
-                                        : 'Absen Masuk',
-                                    style: const TextStyle(fontSize: 16),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: _isAbsenToday && _isAbsenPulangToday
-                                        ? Colors.grey
-                                        : theme.colorScheme.primary,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 32,
-                                      vertical: 12,
-                                    ),
-                                    disabledBackgroundColor: Colors.white.withOpacity(0.7),
-                                    disabledForegroundColor: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          child: RepaintBoundary(
+                            child: _buildAbsenButton(theme),
                           ),
                         ),
                         
@@ -473,28 +375,7 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
                         // Daftar Absensi
                         _absensiData.isEmpty
                             ? SliverToBoxAdapter(
-                                child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(50.0),
-                                    child: Column(
-                                      children: [
-                                        Icon(
-                                          Icons.history,
-                                          size: 80,
-                                          color: Colors.grey[300],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Text(
-                                          'Belum ada data absensi',
-                                          style: TextStyle(
-                                            color: Colors.grey[500],
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                                child: _buildEmptyAbsensiView(),
                               )
                             : SliverList(
                                 delegate: SliverChildBuilderDelegate(
@@ -507,96 +388,8 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
                                     
                                     final absensi = _absensiData[index];
                                     
-                                    return Container(
-                                      margin: const EdgeInsets.symmetric(
-                                        horizontal: 20, 
-                                        vertical: 8,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(15),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.05),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ListTile(
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          horizontal: 16, 
-                                          vertical: 8,
-                                        ),
-                                        title: Text(
-                                          _formatDate(absensi['tanggal']),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                        subtitle: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.login,
-                                                  size: 16,
-                                                  color: theme.colorScheme.primary,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Flexible(
-                                                  child: Text(
-                                                    'Masuk: ${_formatTime(absensi['jamMasuk'])}',
-                                                    style: const TextStyle(fontSize: 14),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.logout,
-                                                  size: 16,
-                                                  color: theme.colorScheme.secondary,
-                                                ),
-                                                const SizedBox(width: 6),
-                                                Flexible(
-                                                  child: Text(
-                                                    'Pulang: ${_formatTime(absensi['jamKeluar'])}',
-                                                    style: const TextStyle(fontSize: 14),
-                                                    overflow: TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                        trailing: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: _getStatusColor(absensi['status']),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            absensi['status'] ?? 'HADIR',
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 10,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
+                                    return RepaintBoundary(
+                                      child: _buildAbsensiItem(absensi, theme),
                                     );
                                   },
                                   childCount: _absensiData.length,
@@ -610,6 +403,237 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
                       ],
                     ),
                   ),
+      ),
+    );
+  }
+
+  // Extracted method untuk absen button (mengurangi rebuilds)
+  Widget _buildAbsenButton(ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: _isAbsenToday && _isAbsenPulangToday
+              ? [Colors.grey.shade300, Colors.grey.shade400]
+              : [
+                  theme.colorScheme.primary,
+                  theme.colorScheme.secondary,
+                ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: (_isAbsenToday && _isAbsenPulangToday
+                    ? Colors.grey
+                    : theme.colorScheme.primary)
+                .withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            _isAbsenToday
+                ? _isAbsenPulangToday
+                    ? 'Absensi Hari Ini Selesai'
+                    : 'Absen Pulang'
+                : 'Absen Masuk',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 15),
+          ElevatedButton.icon(
+            onPressed: _isAbsenToday && _isAbsenPulangToday
+                ? null
+                : _doAbsen,
+            icon: Icon(
+              _isAbsenToday
+                  ? _isAbsenPulangToday
+                      ? Icons.check_circle
+                      : Icons.logout
+                  : Icons.login,
+              size: 24,
+            ),
+            label: Text(
+              _isAbsenToday
+                  ? _isAbsenPulangToday
+                      ? 'Sudah Absen'
+                      : 'Absen Pulang'
+                  : 'Absen Masuk',
+              style: const TextStyle(fontSize: 16),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: _isAbsenToday && _isAbsenPulangToday
+                  ? Colors.grey
+                  : theme.colorScheme.primary,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 12,
+              ),
+              disabledBackgroundColor: Colors.white.withOpacity(0.7),
+              disabledForegroundColor: Colors.grey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Extracted method untuk item absensi (mengurangi rebuilds)
+  Widget _buildAbsensiItem(dynamic absensi, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 20, 
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16, 
+          vertical: 8,
+        ),
+        title: Text(
+          _formatDate(absensi['tanggal']),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.login,
+                  size: 16,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Masuk: ${_formatTime(absensi['jamMasuk'])}',
+                    style: const TextStyle(fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.logout,
+                  size: 16,
+                  color: theme.colorScheme.secondary,
+                ),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Pulang: ${_formatTime(absensi['jamKeluar'])}',
+                    style: const TextStyle(fontSize: 14),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: _getStatusColor(absensi['status']),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            absensi['status'] ?? 'HADIR',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Extracted method untuk error view
+  Widget _buildErrorView(ThemeData theme) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Text(
+              _errorMessage,
+              style: TextStyle(color: theme.colorScheme.error),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: _fetchAbsensiData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Coba Lagi'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Extracted method untuk empty view
+  Widget _buildEmptyAbsensiView() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(50.0),
+        child: Column(
+          children: [
+            Icon(
+              Icons.history,
+              size: 80,
+              color: Colors.grey[300],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Belum ada data absensi',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

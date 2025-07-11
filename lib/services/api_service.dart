@@ -34,6 +34,9 @@ class ApiService {
   // Cache storage
   final Map<String, _CachedResponse> _cache = {};
   
+  // Optimasi HTTP client dengan connection pooling
+  final http.Client _client = http.Client();
+  
   // Logger
   final Logger _logger = Logger(
     printer: PrettyPrinter(
@@ -50,6 +53,23 @@ class ApiService {
   static final ApiService _instance = ApiService._internal();
   factory ApiService() => _instance;
   ApiService._internal();
+  
+  // Dispose resources when app is closed
+  void dispose() {
+    _client.close();
+  }
+
+  // Mengoptimalkan cache untuk mengurangi network calls
+  bool isCacheValid(String endpoint) {
+    return _cache.containsKey(endpoint) && !_cache[endpoint]!.isExpired();
+  }
+  
+  void updateCache(String endpoint, Map<String, dynamic> data, {Duration? validity}) {
+    _cache[endpoint] = _CachedResponse(
+      data, 
+      validity != null ? DateTime.now().add(validity) : DateTime.now().add(const Duration(minutes: 5))
+    );
+  }
 
   // Menyimpan token ke SharedPreferences
   Future<void> saveToken(String token) async {
@@ -88,24 +108,42 @@ class ApiService {
     _cache.clear();
   }
 
-  // Cek konektivitas
+  // Cek konektivitas - optimized with memory caching
+  DateTime? _lastConnectivityCheck;
+  bool? _lastConnectivityResult;
+  
   Future<bool> hasInternetConnection() async {
+    // Cache konektivitas untuk 3 detik
+    if (_lastConnectivityCheck != null && 
+        _lastConnectivityResult != null && 
+        DateTime.now().difference(_lastConnectivityCheck!) < const Duration(seconds: 3)) {
+      return _lastConnectivityResult!;
+    }
+    
     try {
       var connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult == ConnectivityResult.none) {
+        _lastConnectivityCheck = DateTime.now();
+        _lastConnectivityResult = false;
         return false;
       }
       
       // Tambahan pengecekan dengan ping ke DNS Google
       final result = await InternetAddress.lookup('google.com');
-      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        return true;
-      }
-      return false;
+      final hasConnection = result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      
+      _lastConnectivityCheck = DateTime.now();
+      _lastConnectivityResult = hasConnection;
+      
+      return hasConnection;
     } on SocketException catch (_) {
+      _lastConnectivityCheck = DateTime.now();
+      _lastConnectivityResult = false;
       return false;
     } catch (e) {
       _logger.e('Error checking internet connection: $e');
+      _lastConnectivityCheck = DateTime.now();
+      _lastConnectivityResult = false;
       return false;
     }
   }
@@ -116,7 +154,7 @@ class ApiService {
       final currentToken = await getToken();
       if (currentToken == null) return false;
       
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl$refreshTokenEndpoint'),
         headers: {
           'Authorization': 'Bearer $currentToken',
@@ -145,7 +183,7 @@ class ApiService {
     }
     
     try {
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl/test-token'),
       ).timeout(_requestTimeout);
       
@@ -201,7 +239,7 @@ class ApiService {
     try {
       _logger.i('Trying login for user: $username');
       
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl$loginEndpoint'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -336,7 +374,7 @@ class ApiService {
     // Menggunakan API jika tidak menggunakan mock data
     try {
       _logger.d('Fetching from $endpoint');
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -422,7 +460,7 @@ class ApiService {
 
     // Menggunakan API jika tidak menggunakan mock data
     try {
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -462,7 +500,7 @@ class ApiService {
 
     // Menggunakan API jika tidak menggunakan mock data
     try {
-      final response = await http.put(
+      final response = await _client.put(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -501,7 +539,7 @@ class ApiService {
       }
 
       print('Mengambil data guru dari: $baseUrl$guruEndpoint');
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl$guruEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -591,7 +629,7 @@ class ApiService {
         endpoint += '?guruId=${user.guruId}';
       }
       
-      final response = await http.get(
+      final response = await _client.get(
         Uri.parse('$baseUrl$endpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -744,7 +782,7 @@ class ApiService {
       
       print('Data akhir yang dikirim: $finalData');
 
-      final response = await http.post(
+      final response = await _client.post(
         Uri.parse('$baseUrl$absensiEndpoint'),
         headers: {
           'Authorization': 'Bearer $token',
@@ -829,7 +867,7 @@ class ApiService {
       
       print('Data akhir yang dikirim: $dataToSend');
 
-      final response = await http.put(
+      final response = await _client.put(
         Uri.parse('$baseUrl$absensiEndpoint/$absensiId'),
         headers: {
           'Authorization': 'Bearer $token',

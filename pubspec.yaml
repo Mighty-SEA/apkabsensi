@@ -37,13 +37,13 @@ dependencies:
   http: ^1.2.0
   shared_preferences: ^2.2.2
   provider: ^6.1.1
-  intl: ^0.19.0
+  intl: ^0.20.2
   google_fonts: ^6.1.0
   
   # Tambahan dependencies untuk optimasi
   shimmer: ^3.0.0                 # Untuk efek loading skeleton
   cached_network_image: ^3.3.1    # Untuk caching gambar
-  connectivity_plus: ^5.0.2       # Untuk mengecek konektivitas
+  connectivity_plus: ^6.1.4       # Untuk mengecek konektivitas
   logger: ^2.0.2+1                # Untuk logging yang lebih baik
   flutter_secure_storage: ^9.0.0  # Untuk penyimpanan yang lebih aman
   path_provider: ^2.1.2           # Untuk akses file sistem
@@ -57,7 +57,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
