@@ -32,6 +32,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+    // HAPUS dummy error
+    // Future.delayed(const Duration(milliseconds: 500), () {
+    //   if (mounted) {
+    //     setState(() {
+    //       _errorMessage = 'Username atau password salah. Silakan coba lagi.';
+    //     });
+    //   }
+    // });
   }
 
   @override
@@ -43,52 +51,31 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   void _login() async {
-    setState(() {
-      _errorMessage = '';
-    });
-
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+      setState(() {
+        _errorMessage = '';
+      });
       final success = await authProvider.login(
         _usernameController.text.trim(),
         _passwordController.text.trim(),
       );
-      
       if (success && mounted) {
+        setState(() {
+          _errorMessage = '';
+        });
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainScreen()),
         );
       } else if (mounted) {
-        // Ambil pesan error dari provider dan tampilkan di UI
         setState(() {
           _errorMessage = authProvider.errorMessage;
         });
-        
-        // Tambahkan juga SnackBar untuk memastikan pesan terlihat
-        if (_errorMessage.contains('Username atau password salah')) {
+        // SnackBar hanya untuk error selain username/password salah
+        if (!_errorMessage.contains('Username atau password salah')) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.person_off_rounded, color: Colors.white),
-                  const SizedBox(width: 10),
-                  const Expanded(child: Text('Username atau password salah. Silakan coba lagi.')),
-                ],
-              ),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              margin: const EdgeInsets.all(12),
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.errorMessage),
+              content: Text(_errorMessage),
               backgroundColor: Theme.of(context).colorScheme.error,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
@@ -101,6 +88,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         }
       }
     }
+  }
+
+  void _clearError() {
+    setState(() {
+      _errorMessage = '';
+    });
   }
 
   // Fungsi helper untuk mencoba terhubung ke server dan cek URL
@@ -125,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final theme = Theme.of(context);
-    
+    final isLoginError = _errorMessage.contains('Username atau password salah');
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.white,
@@ -139,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         body: SafeArea(
           child: Stack(
             children: [
-              // Background decoration
+              // Background
               Positioned(
                 top: -size.width * 0.3,
                 right: -size.width * 0.3,
@@ -164,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   ),
                 ),
               ),
-              
               // Main content
               Center(
                 child: SingleChildScrollView(
@@ -177,7 +169,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Logo atau gambar aplikasi
+                          // Logo
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
@@ -191,8 +183,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           const SizedBox(height: 24),
-                          
-                          // Judul aplikasi
+                          // Judul
                           Text(
                             'Aplikasi Absensi',
                             textAlign: TextAlign.center,
@@ -203,7 +194,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           const SizedBox(height: 8),
-                          
                           // Subtitle
                           Text(
                             'Masuk untuk melanjutkan',
@@ -214,97 +204,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             ),
                           ),
                           const SizedBox(height: 32),
-                          
-                          // Pesan error
-                          if (_errorMessage.isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              margin: const EdgeInsets.only(bottom: 20),
-                              decoration: BoxDecoration(
-                                color: _errorMessage.contains('berhasil') 
-                                    ? Colors.green.withOpacity(0.1) 
-                                    : theme.colorScheme.error.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: _errorMessage.contains('berhasil') 
-                                      ? Colors.green 
-                                      : theme.colorScheme.error,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        _errorMessage.contains('berhasil') 
-                                            ? Icons.check_circle 
-                                            : _errorMessage.contains('Username atau password salah')
-                                                ? Icons.person_off_rounded
-                                                : Icons.error_outline_rounded,
-                                        color: _errorMessage.contains('berhasil') 
-                                            ? Colors.green 
-                                            : theme.colorScheme.error,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          _errorMessage.contains('berhasil') 
-                                              ? 'Status Server' 
-                                              : _errorMessage.contains('Username atau password salah')
-                                                  ? 'Login Gagal'
-                                                  : 'Error',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: _errorMessage.contains('berhasil') 
-                                                ? Colors.green 
-                                                : theme.colorScheme.error,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _errorMessage,
-                                    style: TextStyle(
-                                      color: _errorMessage.contains('berhasil')
-                                          ? Colors.green.shade700
-                                          : theme.colorScheme.error,
-                                    ),
-                                  ),
-                                  if (_errorMessage.contains('Username atau password salah'))
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8.0),
-                                      child: Text(
-                                        'Pastikan Anda memasukkan username dan password dengan benar.',
-                                        style: TextStyle(
-                                          fontStyle: FontStyle.italic,
-                                          fontSize: 13,
-                                          color: theme.colorScheme.error,
-                                        ),
-                                      ),
-                                    ),
-                                  if (!_errorMessage.contains('berhasil'))
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton(
-                                        onPressed: _checkServerConnection,
-                                        child: const Text('Periksa Koneksi'),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          
-                          // Field username
+                          // Username
                           TextFormField(
                             controller: _usernameController,
-                            decoration: const InputDecoration(
+                            decoration: InputDecoration(
                               labelText: 'Username',
                               hintText: 'Masukkan username Anda',
-                              prefixIcon: Icon(Icons.person_rounded),
+                              prefixIcon: const Icon(Icons.person_rounded),
+                              enabledBorder: isLoginError
+                                  ? OutlineInputBorder(
+                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+                                    )
+                                  : null,
+                              focusedBorder: isLoginError
+                                  ? OutlineInputBorder(
+                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
+                                    )
+                                  : null,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -314,8 +230,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             },
                           ),
                           const SizedBox(height: 20),
-                          
-                          // Field password
+                          // Password
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -325,7 +240,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               prefixIcon: const Icon(Icons.lock_rounded),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword 
+                                  _obscurePassword
                                       ? Icons.visibility_rounded
                                       : Icons.visibility_off_rounded,
                                 ),
@@ -335,6 +250,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   });
                                 },
                               ),
+                              enabledBorder: isLoginError
+                                  ? OutlineInputBorder(
+                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
+                                    )
+                                  : null,
+                              focusedBorder: isLoginError
+                                  ? OutlineInputBorder(
+                                      borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
+                                    )
+                                  : null,
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -344,22 +269,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             },
                           ),
                           const SizedBox(height: 32),
-                          
                           // Tombol login
                           Consumer<AuthProvider>(
                             builder: (context, auth, child) {
-                              return ElevatedButton(
-                                onPressed: auth.isLoading ? null : _login,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: auth.isLoading
-                                      ? const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 2,
-                                          ),
+                              return SizedBox(
+                                height: 48,
+                                child: ElevatedButton(
+                                  onPressed: auth.isLoginLoading ? null : _login,
+                                  style: ElevatedButton.styleFrom(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    backgroundColor: theme.colorScheme.primary,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: auth.isLoginLoading
+                                      ? Row(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const SizedBox(
+                                              width: 22,
+                                              height: 22,
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            const Text(
+                                              'Memproses...',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ],
                                         )
                                       : const Text(
                                           'MASUK',
@@ -372,9 +316,69 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               );
                             },
                           ),
-                          
+                          // Pesan error SELALU di bawah tombol login
+                          if (_errorMessage.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 20.0),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.error.withOpacity(0.08),
+                                  border: Border.all(color: theme.colorScheme.error, width: 1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Icon(
+                                      isLoginError ? Icons.person_off_rounded : Icons.error_outline_rounded,
+                                      color: theme.colorScheme.error,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            isLoginError ? 'Login Gagal' : 'Error',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: theme.colorScheme.error,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            _errorMessage,
+                                            style: TextStyle(
+                                              color: theme.colorScheme.error,
+                                            ),
+                                          ),
+                                          if (isLoginError)
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4.0),
+                                              child: Text(
+                                                'Pastikan username dan password benar.',
+                                                style: TextStyle(
+                                                  fontStyle: FontStyle.italic,
+                                                  fontSize: 13,
+                                                  color: theme.colorScheme.error,
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close),
+                                      color: theme.colorScheme.error,
+                                      tooltip: 'Tutup',
+                                      onPressed: _clearError,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           const SizedBox(height: 24),
-                          
                           // Bantuan
                           Center(
                             child: TextButton.icon(

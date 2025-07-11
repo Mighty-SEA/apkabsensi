@@ -7,11 +7,13 @@ class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
   User? _user;
   bool _isLoading = false;
+  bool _isLoginLoading = false; // Loading khusus untuk login
   String _errorMessage = '';
   Timer? _refreshTimer;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
+  bool get isLoginLoading => _isLoginLoading; // Getter untuk login loading
   bool get isAuthenticated => _user != null;
   String get errorMessage => _errorMessage;
 
@@ -76,7 +78,7 @@ class AuthProvider extends ChangeNotifier {
 
   // Login
   Future<bool> login(String username, String password) async {
-    _isLoading = true;
+    _isLoginLoading = true; // Gunakan loading khusus untuk login
     _errorMessage = '';
     notifyListeners();
     
@@ -87,19 +89,19 @@ class AuthProvider extends ChangeNotifier {
         _user = await _apiService.getUser();
         // Mulai timer untuk refresh token secara periodik
         _startRefreshTimer();
-        _isLoading = false;
+        _isLoginLoading = false; // Reset loading login
         notifyListeners();
         return true;
       } else {
         _errorMessage = result['message'];
         print('Login error: $_errorMessage'); // Debug log
-        _isLoading = false;
+        _isLoginLoading = false; // Reset loading login
         notifyListeners();
         return false;
       }
     } catch (e) {
       _errorMessage = 'Terjadi kesalahan saat login: $e';
-      _isLoading = false;
+      _isLoginLoading = false; // Reset loading login
       notifyListeners();
       return false;
     }
