@@ -19,13 +19,13 @@ class PengaturanGaji {
   
   factory PengaturanGaji.fromJson(Map<String, dynamic> json) {
     return PengaturanGaji(
-      id: json['id'] ?? '',
-      gajiPokok: json['gajiPokok'] ?? 0,
-      potonganIzin: json['potonganIzin'] ?? 0,
-      potonganSakit: json['potonganSakit'] ?? 0,
-      potonganAlpa: json['potonganAlpa'] ?? 0,
+      id: json['id']?.toString() ?? '',
+      gajiPokok: json['gajiPokok'] is int ? json['gajiPokok'] : int.tryParse(json['gajiPokok']?.toString() ?? '0') ?? 0,
+      potonganIzin: json['potonganIzin'] is int ? json['potonganIzin'] : int.tryParse(json['potonganIzin']?.toString() ?? '0') ?? 0,
+      potonganSakit: json['potonganSakit'] is int ? json['potonganSakit'] : int.tryParse(json['potonganSakit']?.toString() ?? '0') ?? 0,
+      potonganAlpa: json['potonganAlpa'] is int ? json['potonganAlpa'] : int.tryParse(json['potonganAlpa']?.toString() ?? '0') ?? 0,
       isGlobal: json['isGlobal'] ?? true,
-      guruId: json['guruId'],
+      guruId: json['guruId']?.toString(),
     );
   }
   
@@ -91,22 +91,22 @@ class GajiGuru {
   
   factory GajiGuru.fromJson(Map<String, dynamic> json) {
     return GajiGuru(
-      id: json['id'] ?? '',
-      guruId: json['guruId'] ?? '',
-      namaGuru: json['namaGuru'] ?? '',
+      id: json['id']?.toString() ?? '',
+      guruId: json['guruId']?.toString() ?? '',
+      namaGuru: json['namaGuru'] ?? json['guru']?['nama'] ?? '',
       periode: json['periode'] ?? '',
-      gajiPokok: json['gajiPokok'] ?? 0,
-      potonganIzin: json['potonganIzin'] ?? 0,
-      potonganSakit: json['potonganSakit'] ?? 0,
-      potonganAlpa: json['potonganAlpa'] ?? 0,
-      jumlahHadir: json['jumlahHadir'] ?? 0,
-      jumlahIzin: json['jumlahIzin'] ?? 0,
-      jumlahSakit: json['jumlahSakit'] ?? 0,
-      jumlahAlpa: json['jumlahAlpa'] ?? 0,
-      totalPotongan: json['totalPotongan'] ?? 0,
-      totalGaji: json['totalGaji'] ?? 0,
+      gajiPokok: json['gajiPokok'] is int ? json['gajiPokok'] : int.tryParse(json['gajiPokok']?.toString() ?? '0') ?? 0,
+      potonganIzin: json['potonganIzin'] is int ? json['potonganIzin'] : int.tryParse(json['potonganIzin']?.toString() ?? '0') ?? 0,
+      potonganSakit: json['potonganSakit'] is int ? json['potonganSakit'] : int.tryParse(json['potonganSakit']?.toString() ?? '0') ?? 0,
+      potonganAlpa: json['potonganAlpa'] is int ? json['potonganAlpa'] : int.tryParse(json['potonganAlpa']?.toString() ?? '0') ?? 0,
+      jumlahHadir: json['jumlahHadir'] is int ? json['jumlahHadir'] : int.tryParse(json['jumlahHadir']?.toString() ?? '0') ?? 0,
+      jumlahIzin: json['jumlahIzin'] is int ? json['jumlahIzin'] : int.tryParse(json['jumlahIzin']?.toString() ?? '0') ?? 0,
+      jumlahSakit: json['jumlahSakit'] is int ? json['jumlahSakit'] : int.tryParse(json['jumlahSakit']?.toString() ?? '0') ?? 0,
+      jumlahAlpa: json['jumlahAlpa'] is int ? json['jumlahAlpa'] : int.tryParse(json['jumlahAlpa']?.toString() ?? '0') ?? 0,
+      totalPotongan: json['totalPotongan'] is int ? json['totalPotongan'] : int.tryParse(json['totalPotongan']?.toString() ?? '0') ?? 0,
+      totalGaji: json['totalGaji'] is int ? json['totalGaji'] : int.tryParse(json['totalGaji']?.toString() ?? '0') ?? 0,
       sudahDibayar: json['sudahDibayar'] ?? false,
-      tanggalPembayaran: json['tanggalPembayaran'],
+      tanggalPembayaran: json['tanggalPembayaran']?.toString(),
     );
   }
   

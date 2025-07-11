@@ -16,7 +16,9 @@ class ApiService {
   // Ganti dengan URL API Anda
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
-  static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
+  // static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
+    static const String baseUrl = 'http://192.168.58.112:3001/api';
+
   
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
@@ -1566,6 +1568,8 @@ class ApiService {
       }
       
       final Uri uri = Uri.parse('$baseUrl$gajiGuruEndpoint').replace(queryParameters: queryParams);
+      
+      _logger.d('Mengambil data gaji dari: $uri');
 
       final response = await _client.get(
         uri,
@@ -1575,14 +1579,24 @@ class ApiService {
         },
       ).timeout(_requestTimeout);
 
+      final responseBody = response.body;
+      _logger.d('Response status: ${response.statusCode}, body: $responseBody');
+
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+        final data = jsonDecode(responseBody);
         return {'success': true, 'data': data['gajiGuru'] ?? []};
       } else {
-        return {
-          'success': false,
-          'message': 'Gagal mengambil data gaji guru: ${response.statusCode}',
-        };
+        // Parse error message dari response
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(responseBody);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal mengambil data gaji guru: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal mengambil data gaji guru: ${response.statusCode}';
+        }
+        
+        _logger.e('Error fetching salary data: $errorMessage');
+        return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
       _logger.e('Error fetching teacher salary data: $e');
@@ -1688,15 +1702,27 @@ class ApiService {
         }),
       ).timeout(_requestTimeout);
 
+      _logger.d('Response status: ${response.statusCode}, body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['gajiGuru'] ?? [], 'message': 'Berhasil menghitung gaji semua guru'};
-      } else {
-        final responseData = jsonDecode(response.body);
         return {
-          'success': false,
-          'message': responseData['message'] ?? 'Gagal menghitung gaji semua guru',
+          'success': true, 
+          'data': data['gajiGuru'] ?? [], 
+          'message': data['message'] ?? 'Berhasil menghitung gaji semua guru'
         };
+      } else {
+        // Parse error message dari response
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal menghitung gaji semua guru: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal menghitung gaji semua guru: ${response.statusCode}';
+        }
+        
+        _logger.e('Error calculating all salaries: $errorMessage');
+        return {'success': false, 'message': errorMessage};
       }
     } catch (e) {
       _logger.e('Error calculating all teachers\' salaries: $e');

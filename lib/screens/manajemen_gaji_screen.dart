@@ -108,7 +108,9 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
     });
     
     try {
+      print('Memulai proses perhitungan gaji untuk periode: $_selectedPeriode');
       final result = await _apiService.hitungSemuaGajiGuru(_selectedPeriode);
+      print('Hasil perhitungan gaji: $result');
       
       setState(() {
         _isLoading = false;
@@ -116,8 +118,8 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
       
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Berhasil menghitung gaji semua guru'),
+          SnackBar(
+            content: Text(result['message'] ?? 'Berhasil menghitung gaji semua guru'),
             backgroundColor: Colors.green,
           ),
         );
@@ -133,6 +135,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
         );
       }
     } catch (e) {
+      print('Error saat menghitung gaji: $e');
       setState(() {
         _isLoading = false;
       });
@@ -228,7 +231,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
             Text('Tandai gaji ${gaji.namaGuru} sebagai sudah dibayar?'),
             const SizedBox(height: 16),
             Text('Total: ${gaji.totalGajiFormatted}'),
-            Text('Periode: ${DateFormat('MMMM yyyy').format(DateTime.parse(gaji.periode + '-01'))}'),
+            Text('Periode: ${DateFormat('MMMM yyyy', 'id_ID').format(DateTime.parse(gaji.periode + '-01'))}'),
           ],
         ),
         actions: [
@@ -298,24 +301,109 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
         ? DateTime.parse('${_selectedPeriode}-01')
         : DateTime.now();
     
-    final DateTime? picked = await showDatePicker(
+    // Gunakan year picker terlebih dahulu
+    final DateTime? picked = await showDialog<DateTime>(
       context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      initialDatePickerMode: DatePickerMode.year,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            dialogBackgroundColor: Colors.white,
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
+      builder: (BuildContext context) {
+        int selectedYear = initialDate.year;
+        int selectedMonth = initialDate.month;
+        final currentYear = DateTime.now().year;
+        
+        return AlertDialog(
+          title: const Text('Pilih Periode'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SizedBox(
+                height: 300,
+                width: 300,
+                child: Column(
+                  children: [
+                    // Pilihan tahun
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios),
+                          onPressed: () {
+                            setState(() {
+                              selectedYear = selectedYear > 2020 ? selectedYear - 1 : selectedYear;
+                            });
+                          },
+                        ),
+                        Text(
+                          selectedYear.toString(),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios),
+                          onPressed: () {
+                            setState(() {
+                              selectedYear = selectedYear < 2030 ? selectedYear + 1 : selectedYear;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Grid bulan
+                    Expanded(
+                      child: GridView.count(
+                        crossAxisCount: 3,
+                        children: List.generate(12, (index) {
+                          final month = index + 1;
+                          final isSelected = month == selectedMonth;
+                          final monthName = DateFormat('MMM', 'id_ID').format(DateTime(selectedYear, month));
+                          
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                selectedMonth = month;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade400,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  monthName,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-          child: child!,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(DateTime(selectedYear, selectedMonth));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Pilih'),
+            ),
+          ],
         );
       },
     );
@@ -332,7 +420,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
   }
   
   void _showDetailGaji(GajiGuru gaji) {
-    final formattedPeriode = DateFormat('MMMM yyyy').format(DateTime.parse('${gaji.periode}-01'));
+    final formattedPeriode = DateFormat('MMMM yyyy', 'id_ID').format(DateTime.parse('${gaji.periode}-01'));
     final theme = Theme.of(context);
     
     showModalBottomSheet(
@@ -519,7 +607,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
   @override
   Widget build(BuildContext context) {
     final formattedPeriode = _selectedPeriode.isNotEmpty
-        ? DateFormat('MMMM yyyy').format(DateTime.parse('${_selectedPeriode}-01'))
+        ? DateFormat('MMMM yyyy', 'id_ID').format(DateTime.parse('${_selectedPeriode}-01'))
         : '';
     
     return Scaffold(
@@ -653,7 +741,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
                                                         ),
                                                         const SizedBox(width: 4),
                                                         Text(
-                                                          formattedPeriode,
+                                                          DateFormat('MMMM yyyy', 'id_ID').format(DateTime.parse('${gaji.periode}-01')),
                                                           style: TextStyle(
                                                             fontSize: 14,
                                                             color: Colors.grey[600],

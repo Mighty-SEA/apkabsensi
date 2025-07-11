@@ -150,24 +150,111 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   
   // Tampilkan dialog pilih bulan
   Future<void> _selectMonth() async {
-    final DateTime? picked = await showDatePicker(
+    final DateTime initialDate = _selectedDate;
+    
+    // Gunakan year picker terlebih dahulu
+    final DateTime? picked = await showDialog<DateTime>(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      initialDatePickerMode: DatePickerMode.year,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            dialogBackgroundColor: Colors.white,
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Colors.black,
-            ),
+      builder: (BuildContext context) {
+        int selectedYear = initialDate.year;
+        int selectedMonth = initialDate.month;
+        final currentYear = DateTime.now().year;
+        
+        return AlertDialog(
+          title: const Text('Pilih Periode'),
+          content: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return SizedBox(
+                height: 300,
+                width: 300,
+                child: Column(
+                  children: [
+                    // Pilihan tahun
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.arrow_back_ios),
+                          onPressed: () {
+                            setState(() {
+                              selectedYear = selectedYear > 2020 ? selectedYear - 1 : selectedYear;
+                            });
+                          },
+                        ),
+                        Text(
+                          selectedYear.toString(),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.arrow_forward_ios),
+                          onPressed: () {
+                            setState(() {
+                              selectedYear = selectedYear < 2030 ? selectedYear + 1 : selectedYear;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    // Grid bulan
+                    Expanded(
+                      child: GridView.count(
+                        crossAxisCount: 3,
+                        children: List.generate(12, (index) {
+                          final month = index + 1;
+                          final isSelected = month == selectedMonth;
+                          final monthName = DateFormat('MMM', 'id_ID').format(DateTime(selectedYear, month));
+                          
+                          return InkWell(
+                            onTap: () {
+                              setState(() {
+                                selectedMonth = month;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade400,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  monthName,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.white : Colors.black,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
-          child: child!,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop(DateTime(selectedYear, selectedMonth));
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).primaryColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Pilih'),
+            ),
+          ],
         );
       },
     );

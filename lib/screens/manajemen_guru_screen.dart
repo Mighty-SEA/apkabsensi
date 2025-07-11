@@ -110,7 +110,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                   key: _formKey,
                   child: SingleChildScrollView(
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Header
@@ -164,7 +164,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: Row(
-                            children: [
+          children: [
                               Icon(
                                 Icons.badge,
                                 color: Theme.of(context).primaryColor,
@@ -184,7 +184,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         
                         // Nama field dengan auto-generate username
                         TextFormField(
-                          controller: namaController,
+              controller: namaController,
                           decoration: InputDecoration(
                             labelText: 'Nama Lengkap *',
                             hintText: 'Masukkan nama lengkap',
@@ -210,7 +210,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         
                         // NIP field
                         TextFormField(
-                          controller: nipController,
+              controller: nipController,
                           decoration: InputDecoration(
                             labelText: 'NIP *',
                             hintText: 'Masukkan NIP',
@@ -356,9 +356,9 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
-                                ),
-                              ],
-                            ),
+            ),
+          ],
+        ),
                           ),
                           
                           // Username field (auto-generated)
@@ -426,17 +426,17 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            TextButton(
+          TextButton(
                               onPressed: _isSubmitting 
                                 ? null 
                                 : () => Navigator.pop(context),
                               style: TextButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                               ),
-                              child: const Text('Batal'),
-                            ),
+            child: const Text('Batal'),
+          ),
                             const SizedBox(width: 12),
-                            ElevatedButton(
+          ElevatedButton(
                               onPressed: _isSubmitting 
                                 ? null 
                                 : () async {
@@ -470,16 +470,16 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                           _isSubmitting = false;
                                         });
                                         
-                                        Navigator.pop(context);
+              Navigator.pop(context);
                                         
                                         if (result['success']) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: Text(result['message'] ?? (guru == null ? 'Guru berhasil ditambahkan' : 'Guru berhasil diupdate')),
                                               backgroundColor: Colors.green,
                                             ),
-                                          );
-                                          _fetchGuru();
+              );
+              _fetchGuru();
                                         } else {
                                           ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
@@ -528,9 +528,9 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                     ),
                             ),
                           ],
-                        ),
-                      ],
-                    ),
+          ),
+        ],
+      ),
                   ),
                 ),
               ),
@@ -627,8 +627,8 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
             content: Text(result['message'] ?? 'Guru berhasil dihapus'),
             backgroundColor: Colors.green,
           ),
-        );
-        _fetchGuru();
+    );
+    _fetchGuru();
       } else {
         setState(() {
           _isLoading = false;
@@ -716,8 +716,8 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
           // List atau loading
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _error.isNotEmpty
+          ? const Center(child: CircularProgressIndicator())
+          : _error.isNotEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -873,10 +873,10 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ),
-                              );
-                            },
+                        ),
+                      ),
+                    );
+                  },
                           ),
           ),
         ],
@@ -886,7 +886,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
         backgroundColor: theme.primaryColor,
         icon: const Icon(Icons.person_add),
         label: const Text('Tambah Guru'),
-      ),
+                ),
     );
   }
   

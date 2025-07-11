@@ -181,10 +181,10 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
     
     try {
       final data = {
-        'gajiPokok': int.parse(_gajiPokokController.text),
-        'potonganIzin': int.parse(_potonganIzinController.text),
-        'potonganSakit': int.parse(_potonganSakitController.text),
-        'potonganAlpa': int.parse(_potonganAlpaController.text),
+        'gajiPokok': int.tryParse(_gajiPokokController.text) ?? 0,
+        'potonganIzin': int.tryParse(_potonganIzinController.text) ?? 0,
+        'potonganSakit': int.tryParse(_potonganSakitController.text) ?? 0,
+        'potonganAlpa': int.tryParse(_potonganAlpaController.text) ?? 0,
         'isGlobal': true,
       };
       
@@ -247,10 +247,10 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
     
     try {
       final data = {
-        'gajiPokok': int.parse(_gajiPokokGuruController.text),
-        'potonganIzin': int.parse(_potonganIzinGuruController.text),
-        'potonganSakit': int.parse(_potonganSakitGuruController.text),
-        'potonganAlpa': int.parse(_potonganAlpaGuruController.text),
+        'gajiPokok': int.tryParse(_gajiPokokGuruController.text) ?? 0,
+        'potonganIzin': int.tryParse(_potonganIzinGuruController.text) ?? 0,
+        'potonganSakit': int.tryParse(_potonganSakitGuruController.text) ?? 0,
+        'potonganAlpa': int.tryParse(_potonganAlpaGuruController.text) ?? 0,
         'isGlobal': false,
         'guruId': _selectedGuruId,
       };
