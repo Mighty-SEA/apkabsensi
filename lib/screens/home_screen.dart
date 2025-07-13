@@ -654,20 +654,39 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
           Container(
             padding: const EdgeInsets.all(15),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(15),
+              gradient: LinearGradient(
+                colors: [color.withOpacity(0.7), color],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: Icon(
               icon,
-              color: color,
+              color: Colors.white,
               size: 30,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
           ),
         ],

@@ -409,81 +409,140 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
 
   // Extracted method untuk absen button (mengurangi rebuilds)
   Widget _buildAbsenButton(ThemeData theme) {
+    // Status warna dan animasi
+    final bool isActive = !(_isAbsenToday && _isAbsenPulangToday);
+    final Color primaryColor = isActive ? theme.colorScheme.primary : Colors.grey.shade400;
+    final Color secondaryColor = isActive ? theme.colorScheme.secondary : Colors.grey.shade300;
+    
     return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: _isAbsenToday && _isAbsenPulangToday
-              ? [Colors.grey.shade300, Colors.grey.shade400]
-              : [
-                  theme.colorScheme.primary,
-                  theme.colorScheme.secondary,
-                ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: (_isAbsenToday && _isAbsenPulangToday
-                    ? Colors.grey
-                    : theme.colorScheme.primary)
-                .withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
         children: [
-          Text(
-            _isAbsenToday
-                ? _isAbsenPulangToday
-                    ? 'Absensi Hari Ini Selesai'
-                    : 'Absen Pulang'
-                : 'Absen Masuk',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 15),
-          ElevatedButton.icon(
-            onPressed: _isAbsenToday && _isAbsenPulangToday
-                ? null
-                : _doAbsen,
-            icon: Icon(
-              _isAbsenToday
-                  ? _isAbsenPulangToday
-                      ? Icons.check_circle
-                      : Icons.logout
-                  : Icons.login,
-              size: 24,
-            ),
-            label: Text(
-              _isAbsenToday
-                  ? _isAbsenPulangToday
-                      ? 'Sudah Absen'
-                      : 'Absen Pulang'
-                  : 'Absen Masuk',
-              style: const TextStyle(fontSize: 16),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: _isAbsenToday && _isAbsenPulangToday
-                  ? Colors.grey
-                  : theme.colorScheme.primary,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 32,
-                vertical: 12,
+          // Background card dengan glow effect
+          Container(
+            padding: const EdgeInsets.all(25),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  primaryColor,
+                  secondaryColor,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              disabledBackgroundColor: Colors.white.withOpacity(0.7),
-              disabledForegroundColor: Colors.grey,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: isActive ? [
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.3),
+                  blurRadius: 15,
+                  spreadRadius: 1,
+                  offset: const Offset(0, 8),
+                ),
+                BoxShadow(
+                  color: primaryColor.withOpacity(0.2),
+                  blurRadius: 30,
+                  spreadRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ] : [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Icon(
+                  _isAbsenToday
+                      ? _isAbsenPulangToday
+                          ? Icons.check_circle_outline
+                          : Icons.logout
+                      : Icons.login,
+                  size: 60,
+                  color: Colors.white.withOpacity(0.9),
+                ),
+                const SizedBox(height: 15),
+                Text(
+                  _isAbsenToday
+                      ? _isAbsenPulangToday
+                          ? 'Absensi Hari Ini Selesai'
+                          : 'Absen Pulang'
+                      : 'Absen Masuk',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 25),
+                ElevatedButton(
+                  onPressed: _isAbsenToday && _isAbsenPulangToday ? null : _doAbsen,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: primaryColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 16,
+                    ),
+                    disabledBackgroundColor: Colors.white.withOpacity(0.7),
+                    disabledForegroundColor: Colors.grey,
+                    elevation: isActive ? 8 : 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    shadowColor: isActive ? primaryColor.withOpacity(0.5) : Colors.transparent,
+                  ),
+                  child: Text(
+                    _isAbsenToday
+                        ? _isAbsenPulangToday
+                            ? 'SUDAH ABSEN'
+                            : 'ABSEN PULANG SEKARANG'
+                        : 'ABSEN MASUK SEKARANG',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isActive ? primaryColor : Colors.grey,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          
+          // Efek lingkaran di belakang (opsional untuk efek visual)
+          if (isActive)
+            Positioned(
+              top: -20,
+              right: -20,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          if (isActive)
+            Positioned(
+              bottom: -15,
+              left: -15,
+              child: Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
         ],
       ),
     );
