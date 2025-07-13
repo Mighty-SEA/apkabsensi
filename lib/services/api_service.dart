@@ -17,7 +17,7 @@ class ApiService {
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
   // static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
-    static const String baseUrl = 'http://192.168.185.99:3000/api';
+  static const String baseUrl = 'http://localhost:3000/api';
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
   
@@ -553,12 +553,21 @@ class ApiService {
       print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['guru'] ?? []};
+        final responseData = jsonDecode(response.body);
+        // Menyesuaikan dengan format respons dari Express.js
+        final guruData = responseData['data'] ?? [];
+        return {'success': true, 'data': guruData};
       } else {
+        String errorMessage;
+        try {
+          final responseData = jsonDecode(response.body);
+          errorMessage = responseData['error'] ?? 'Gagal mengambil data guru: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal mengambil data guru: ${response.statusCode}';
+        }
         return {
           'success': false,
-          'message': 'Gagal mengambil data guru: ${response.statusCode}',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -588,13 +597,11 @@ class ApiService {
       print('Data guru: $guruData');
       
       final dataToSend = {
-        'nip': guruData['nip'],
         'nama': guruData['nama'],
         'jenisKelamin': guruData['jenisKelamin'] ?? 'Laki-laki',
         'alamat': guruData['alamat'] ?? '',
         'noTelp': guruData['noTelp'] ?? '',
         'email': guruData['email'] ?? '',
-        'mataPelajaran': guruData['mataPelajaran'] ?? '',
         'user': {
           'username': guruData['username'],
           'password': guruData['password'],
@@ -654,13 +661,11 @@ class ApiService {
       
       // Data yang akan dikirim (hanya field yang diizinkan)
       final dataToSend = {
-        'nip': guruData['nip'],
         'nama': guruData['nama'],
         'jenisKelamin': guruData['jenisKelamin'],
         'alamat': guruData['alamat'],
         'noTelp': guruData['noTelp'],
         'email': guruData['email'],
-        'mataPelajaran': guruData['mataPelajaran'],
       };
       
       // Hapus field null atau undefined
@@ -1382,11 +1387,18 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['pengaturanGaji']};
+        return {'success': true, 'data': data['data']};
       } else {
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal mengambil pengaturan gaji: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal mengambil pengaturan gaji: ${response.statusCode}';
+        }
         return {
           'success': false,
-          'message': 'Gagal mengambil pengaturan gaji: ${response.statusCode}',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -1417,14 +1429,21 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['pengaturanGaji']};
+        return {'success': true, 'data': data['data']};
       } else if (response.statusCode == 404) {
         // Jika tidak ada pengaturan khusus, kembalikan pengaturan global
         return getPengaturanGajiGlobal();
       } else {
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal mengambil pengaturan gaji: ${response.statusCode}';
+        } catch (e) {
+          errorMessage = 'Gagal mengambil pengaturan gaji: ${response.statusCode}';
+        }
         return {
           'success': false,
-          'message': 'Gagal mengambil pengaturan gaji: ${response.statusCode}',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -1456,12 +1475,22 @@ class ApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        return {'success': true, 'data': responseData['pengaturanGaji'], 'message': 'Pengaturan gaji global berhasil disimpan'};
+        return {
+          'success': true, 
+          'data': responseData['data'],
+          'message': responseData['message'] ?? 'Pengaturan gaji global berhasil disimpan'
+        };
       } else {
-        final responseData = jsonDecode(response.body);
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal menyimpan pengaturan gaji global';
+        } catch (e) {
+          errorMessage = 'Gagal menyimpan pengaturan gaji global';
+        }
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Gagal menyimpan pengaturan gaji global',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -1493,12 +1522,22 @@ class ApiService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
-        return {'success': true, 'data': responseData['pengaturanGaji'], 'message': 'Pengaturan gaji guru berhasil disimpan'};
+        return {
+          'success': true, 
+          'data': responseData['data'],
+          'message': responseData['message'] ?? 'Pengaturan gaji guru berhasil disimpan'
+        };
       } else {
-        final responseData = jsonDecode(response.body);
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal menyimpan pengaturan gaji guru';
+        } catch (e) {
+          errorMessage = 'Gagal menyimpan pengaturan gaji guru';
+        }
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Gagal menyimpan pengaturan gaji guru',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -1528,12 +1567,22 @@ class ApiService {
       ).timeout(_requestTimeout);
 
       if (response.statusCode == 200) {
-        return {'success': true, 'message': 'Pengaturan gaji guru berhasil dihapus'};
-      } else {
         final responseData = jsonDecode(response.body);
         return {
+          'success': true, 
+          'message': responseData['message'] ?? 'Pengaturan gaji guru berhasil dihapus'
+        };
+      } else {
+        String errorMessage;
+        try {
+          final errorData = jsonDecode(response.body);
+          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal menghapus pengaturan gaji guru';
+        } catch (e) {
+          errorMessage = 'Gagal menghapus pengaturan gaji guru';
+        }
+        return {
           'success': false,
-          'message': responseData['message'] ?? 'Gagal menghapus pengaturan gaji guru',
+          'message': errorMessage,
         };
       }
     } catch (e) {
@@ -1582,7 +1631,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(responseBody);
-        return {'success': true, 'data': data['gajiGuru'] ?? []};
+        return {'success': true, 'data': data['data'] ?? []};
       } else {
         // Parse error message dari response
         String errorMessage;
@@ -1624,7 +1673,7 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['gajiGuru']};
+        return {'success': true, 'data': data['data']};
       } else {
         return {
           'success': false,
@@ -1663,12 +1712,16 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['gajiGuru']};
+        return {
+          'success': true, 
+          'data': data['data'],
+          'message': data['message'] ?? 'Berhasil menghitung gaji guru'
+        };
       } else {
         final responseData = jsonDecode(response.body);
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Gagal menghitung gaji guru',
+          'message': responseData['error'] ?? responseData['message'] ?? 'Gagal menghitung gaji guru',
         };
       }
     } catch (e) {
@@ -1700,30 +1753,22 @@ class ApiService {
         }),
       ).timeout(_requestTimeout);
 
-      _logger.d('Response status: ${response.statusCode}, body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         return {
           'success': true, 
-          'data': data['gajiGuru'] ?? [], 
+          'data': data['data'] ?? [],
           'message': data['message'] ?? 'Berhasil menghitung gaji semua guru'
         };
       } else {
-        // Parse error message dari response
-        String errorMessage;
-        try {
-          final errorData = jsonDecode(response.body);
-          errorMessage = errorData['error'] ?? errorData['message'] ?? 'Gagal menghitung gaji semua guru: ${response.statusCode}';
-        } catch (e) {
-          errorMessage = 'Gagal menghitung gaji semua guru: ${response.statusCode}';
-        }
-        
-        _logger.e('Error calculating all salaries: $errorMessage');
-        return {'success': false, 'message': errorMessage};
+        final responseData = jsonDecode(response.body);
+        return {
+          'success': false,
+          'message': responseData['error'] ?? responseData['message'] ?? 'Gagal menghitung gaji semua guru',
+        };
       }
     } catch (e) {
-      _logger.e('Error calculating all teachers\' salaries: $e');
+      _logger.e('Error calculating all teacher salaries: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
@@ -1753,12 +1798,16 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return {'success': true, 'data': data['gajiGuru'], 'message': 'Gaji guru berhasil dibayar'};
+        return {
+          'success': true, 
+          'data': data['data'],
+          'message': data['message'] ?? 'Gaji guru berhasil dibayar'
+        };
       } else {
         final responseData = jsonDecode(response.body);
         return {
           'success': false,
-          'message': responseData['message'] ?? 'Gagal menandai gaji sebagai dibayar',
+          'message': responseData['error'] ?? responseData['message'] ?? 'Gagal menandai gaji sebagai dibayar',
         };
       }
     } catch (e) {

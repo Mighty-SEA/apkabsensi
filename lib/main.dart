@@ -168,9 +168,7 @@ class MyApp extends StatelessWidget {
               home: authProvider.isLoading
                   ? const SplashScreen()
                   : authProvider.isAuthenticated
-                      ? (authProvider.user?.role == 'administrasi'
-                          ? const AdminMainScreen()
-                          : const MainScreen())
+                      ? const MainScreen()
                       : const LoginScreen(),
             );
           },

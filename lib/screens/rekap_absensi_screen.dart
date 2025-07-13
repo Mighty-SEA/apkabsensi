@@ -142,7 +142,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
     
     final guru = _allGuruData.firstWhere(
       (guru) => guru.id == guruId,
-      orElse: () => Guru(id: '', nama: 'Tidak diketahui', nip: ''),
+      orElse: () => Guru(id: '', nama: 'Tidak diketahui'),
     );
     
     return guru.nama;

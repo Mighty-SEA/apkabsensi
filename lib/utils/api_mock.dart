@@ -32,32 +32,26 @@ class ApiMock {
         {
           'id': 'guru1',
           'nama': 'Ahmad Setiawan',
-          'nip': '19850512200901',
           'jenisKelamin': 'L',
           'alamat': 'Jl. Pendidikan No. 123',
           'noTelp': '08123456789',
-          'email': 'ahmad@sekolah.ac.id',
-          'mapel': 'Matematika'
+          'email': 'ahmad@sekolah.ac.id'
         },
         {
           'id': 'guru2',
           'nama': 'Siti Rahayu',
-          'nip': '19871025201001',
           'jenisKelamin': 'P',
           'alamat': 'Jl. Guru No. 45',
           'noTelp': '08234567890',
-          'email': 'siti@sekolah.ac.id',
-          'mapel': 'Bahasa Indonesia'
+          'email': 'siti@sekolah.ac.id'
         },
         {
           'id': 'guru3',
           'nama': 'Budi Santoso',
-          'nip': '19800330200501',
           'jenisKelamin': 'L',
           'alamat': 'Jl. Pendidik No. 67',
           'noTelp': '08345678901',
-          'email': 'budi@sekolah.ac.id',
-          'mapel': 'IPA'
+          'email': 'budi@sekolah.ac.id'
         }
       ]
     };

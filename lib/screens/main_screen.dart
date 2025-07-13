@@ -69,7 +69,7 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
     final theme = Theme.of(context);
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
-    final bool isAdmin = user != null && user.role == 'ADMINISTRASI';
+    final bool isAdmin = user != null && user.role == 'ADMIN';
 
     // Widget dan navigasi sesuai role
     late List<Widget> widgetOptions;

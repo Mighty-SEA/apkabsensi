@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'pengaturan_gaji_screen.dart';
+import 'manajemen_guru_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -57,7 +58,7 @@ class ProfileScreen extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            if (user?.role == 'ADMINISTRASI') 
+                            if (user?.role == 'ADMIN') 
                               IconButton(
                                 onPressed: () {
                                   Navigator.push(
@@ -208,6 +209,19 @@ class ProfileScreen extends StatelessWidget {
               ),
               
               const SizedBox(height: 30),
+
+              // Tampilkan tombol manajemen guru hanya untuk admin
+              if (user?.role == 'ADMIN')
+                _buildActionCard(
+                  context,
+                  'Manajemen Guru',
+                  'Kelola data guru',
+                  Icons.people,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ManajemenGuruScreen()),
+                  ),
+                ),
             ],
           ),
         ),
@@ -312,5 +326,46 @@ class ProfileScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  Widget _buildActionCard(BuildContext context, String title, String description, IconData icon, VoidCallback onPressed) {
+    final theme = Theme.of(context);
+    
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: ListTile(
+          leading: Icon(
+            icon,
+            color: theme.colorScheme.primary,
+            size: 24,
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          subtitle: Text(
+            description,
+            style: TextStyle(
+              color: Colors.grey[600],
+            ),
+          ),
+          trailing: Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Colors.grey[400],
+          ),
+          onTap: onPressed,
+        ),
+      ),
+    );
   }
 } 

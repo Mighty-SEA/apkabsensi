@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
     
-    if (user != null && user.role == 'ADMINISTRASI') {
+    if (user != null && user.role == 'ADMIN') {
       await _fetchAdminData();
     } else {
       await _fetchRekapData();
@@ -852,7 +852,7 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
     final theme = Theme.of(context);
-    final isAdmin = user != null && user.role == 'ADMINISTRASI';
+    final isAdmin = user != null && user.role == 'ADMIN';
 
     return Scaffold(
       body: RefreshIndicator(

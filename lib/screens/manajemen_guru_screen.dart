@@ -21,11 +21,10 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
   // Filter pencarian
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _searchFocused = false;
   List<Guru> get _filteredGuruList => _guruList
       .where((guru) => 
-          guru.nama.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          guru.nip.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          (guru.mapel != null && guru.mapel!.toLowerCase().contains(_searchQuery.toLowerCase())))
+          guru.nama.toLowerCase().contains(_searchQuery.toLowerCase()))
       .toList();
 
   // Untuk validasi email
@@ -61,12 +60,10 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
   void _showGuruDialog({Guru? guru}) {
     // Controller untuk form fields
     final namaController = TextEditingController(text: guru?.nama ?? '');
-    final nipController = TextEditingController(text: guru?.nip ?? '');
     final jenisKelaminController = TextEditingController(text: guru?.jenisKelamin ?? 'Laki-laki');
     final alamatController = TextEditingController(text: guru?.alamat ?? '');
     final noTelpController = TextEditingController(text: guru?.noTelp ?? '');
     final emailController = TextEditingController(text: guru?.email ?? '');
-    final mapelController = TextEditingController(text: guru?.mapel ?? '');
     
     // Khusus untuk tambah guru baru
     final usernameController = TextEditingController();
@@ -208,27 +205,6 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         ),
                         const SizedBox(height: 16),
                         
-                        // NIP field
-                        TextFormField(
-              controller: nipController,
-                          decoration: InputDecoration(
-                            labelText: 'NIP *',
-                            hintText: 'Masukkan NIP',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            prefixIcon: const Icon(Icons.credit_card),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'NIP tidak boleh kosong';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        
                         // Jenis Kelamin dropdown
                         DropdownButtonFormField<String>(
                           value: selectedJenisKelamin,
@@ -320,20 +296,6 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        
-                        // Mata Pelajaran field
-                        TextFormField(
-                          controller: mapelController,
-                          decoration: InputDecoration(
-                            labelText: 'Mata Pelajaran',
-                            hintText: 'Mata pelajaran yang diampu',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            prefixIcon: const Icon(Icons.book),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                          ),
-                        ),
                         
                         // Tambahan form untuk user baru
                         if (guru == null) ...[
@@ -448,12 +410,10 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                       try {
                                         final guruData = {
                                           'nama': namaController.text,
-                                          'nip': nipController.text,
                                           'jenisKelamin': selectedJenisKelamin,
                                           'alamat': alamatController.text,
                                           'noTelp': noTelpController.text,
                                           'email': emailController.text,
-                                          'mataPelajaran': mapelController.text,
                                         };
                                         
                                         // Tambahkan data user jika tambah guru baru
@@ -551,12 +511,10 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Nama: ${guru.nama}'),
-            Text('NIP: ${guru.nip}'),
             if (guru.jenisKelamin != null) Text('Jenis Kelamin: ${guru.jenisKelamin}'),
             if (guru.alamat != null && guru.alamat!.isNotEmpty) Text('Alamat: ${guru.alamat}'),
             if (guru.noTelp != null && guru.noTelp!.isNotEmpty) Text('No. Telp: ${guru.noTelp}'),
             if (guru.email != null && guru.email!.isNotEmpty) Text('Email: ${guru.email}'),
-            if (guru.mapel != null && guru.mapel!.isNotEmpty) Text('Mata Pelajaran: ${guru.mapel}'),
           ],
         ),
         actions: [
@@ -584,7 +542,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
             ),
             const SizedBox(height: 16),
             Text('Nama: ${guru.nama}'),
-            Text('NIP: ${guru.nip}'),
+            Text('Jenis Kelamin: ${guru.jenisKelamin ?? "Tidak diketahui"}'),
             const SizedBox(height: 16),
             const Text(
               'Perhatian: Tindakan ini akan menghapus data guru dan akun user terkait!',
@@ -693,7 +651,12 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                   });
                 },
                 decoration: InputDecoration(
-                  hintText: 'Cari nama, NIP, atau mata pelajaran...',
+                  hintText:
+                    _searchFocused ? '' : 'Cari nama guru...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 16,
+                    ),
                   border: InputBorder.none,
                   prefixIcon: const Icon(Icons.search),
                   contentPadding: const EdgeInsets.symmetric(vertical: 15),
@@ -819,35 +782,12 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                'NIP: ${guru.nip}',
+                                                guru.jenisKelamin ?? 'Tidak diketahui',
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: Colors.grey[700],
                                                 ),
                                               ),
-                                              if (guru.mapel != null && guru.mapel!.isNotEmpty) ...[
-                                                const SizedBox(height: 4),
-                                                Row(
-                                                  children: [
-                                                    Icon(
-                                                      Icons.book,
-                                                      size: 14,
-                                                      color: theme.primaryColor,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                    Expanded(
-                                                      child: Text(
-                                                        guru.mapel!,
-                                                        style: TextStyle(
-                                                          fontSize: 14,
-                                                          color: theme.primaryColor,
-                                                        ),
-                                                        overflow: TextOverflow.ellipsis,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ],
                                             ],
                                           ),
                                         ),

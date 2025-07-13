@@ -194,7 +194,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('NIP: ${guru.nip}'),
                                   if (status != null)
                                     Text(
                                       'Status hari ini: $status',
