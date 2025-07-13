@@ -4,7 +4,6 @@ class Guru {
   final String? jenisKelamin;
   final String? alamat;
   final String? noTelp;
-  final String? email;
 
   Guru({
     required this.id,
@@ -12,7 +11,6 @@ class Guru {
     this.jenisKelamin,
     this.alamat,
     this.noTelp,
-    this.email,
   });
 
   factory Guru.fromJson(Map<String, dynamic> json) {
@@ -22,7 +20,6 @@ class Guru {
       jenisKelamin: json['jenisKelamin'],
       alamat: json['alamat'],
       noTelp: json['noTelp'],
-      email: json['email'],
     );
   }
 
@@ -33,7 +30,6 @@ class Guru {
       'jenisKelamin': jenisKelamin,
       'alamat': alamat,
       'noTelp': noTelp,
-      'email': email,
     };
   }
 } 

@@ -27,10 +27,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
           guru.nama.toLowerCase().contains(_searchQuery.toLowerCase()))
       .toList();
 
-  // Untuk validasi email
-  final RegExp _emailRegex = RegExp(
-    r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
-  );
+  // Tidak ada lagi validasi email
 
   @override
   void initState() {
@@ -63,7 +60,6 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
     final jenisKelaminController = TextEditingController(text: guru?.jenisKelamin ?? 'Laki-laki');
     final alamatController = TextEditingController(text: guru?.alamat ?? '');
     final noTelpController = TextEditingController(text: guru?.noTelp ?? '');
-    final emailController = TextEditingController(text: guru?.email ?? '');
     
     // Khusus untuk tambah guru baru
     final usernameController = TextEditingController();
@@ -246,53 +242,22 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                         ),
                         const SizedBox(height: 16),
                         
-                        // Row untuk no telp dan email
-                        Row(
-                          children: [
-                            // No Telp field
-                            Expanded(
-                              child: TextFormField(
-                                controller: noTelpController,
-                                decoration: InputDecoration(
-                                  labelText: 'Nomor Telepon',
-                                  hintText: 'Nomor telepon',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  prefixIcon: const Icon(Icons.phone),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                  prefixText: '+62 ',
-                                ),
-                                keyboardType: TextInputType.phone,
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.digitsOnly,
-                                ],
-                              ),
+                        // No Telp field
+                        TextFormField(
+                          controller: noTelpController,
+                          decoration: InputDecoration(
+                            labelText: 'Nomor Telepon',
+                            hintText: 'Nomor telepon',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(width: 16),
-                            
-                            // Email field
-                            Expanded(
-                              child: TextFormField(
-                                controller: emailController,
-                                decoration: InputDecoration(
-                                  labelText: 'Email',
-                                  hintText: 'Email',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  prefixIcon: const Icon(Icons.email),
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value != null && value.isNotEmpty && !_emailRegex.hasMatch(value)) {
-                                    return 'Format email tidak valid';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ),
+                            prefixIcon: const Icon(Icons.phone),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                            prefixText: '+62 ',
+                          ),
+                          keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -413,7 +378,6 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
                                           'jenisKelamin': selectedJenisKelamin,
                                           'alamat': alamatController.text,
                                           'noTelp': noTelpController.text,
-                                          'email': emailController.text,
                                         };
                                         
                                         // Tambahkan data user jika tambah guru baru
@@ -514,7 +478,6 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
             if (guru.jenisKelamin != null) Text('Jenis Kelamin: ${guru.jenisKelamin}'),
             if (guru.alamat != null && guru.alamat!.isNotEmpty) Text('Alamat: ${guru.alamat}'),
             if (guru.noTelp != null && guru.noTelp!.isNotEmpty) Text('No. Telp: ${guru.noTelp}'),
-            if (guru.email != null && guru.email!.isNotEmpty) Text('Email: ${guru.email}'),
           ],
         ),
         actions: [

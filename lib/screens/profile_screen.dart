@@ -179,8 +179,6 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(height: 16),
                         _buildInfoItem(context, Icons.person_outline_rounded, 'Username', user?.username ?? '-'),
                         const Divider(),
-                        _buildInfoItem(context, Icons.email_outlined, 'Email', 'email@example.com'),
-                        const Divider(),
                         _buildInfoItem(context, Icons.phone_outlined, 'No. Telepon', '08xxxxxxxxxx'),
                       ],
                     ),
