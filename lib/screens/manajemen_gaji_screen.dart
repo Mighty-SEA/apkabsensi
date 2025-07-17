@@ -493,115 +493,116 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: theme.primaryColor.withOpacity(0.1),
-                    child: Icon(
-                      Icons.person,
-                      color: theme.primaryColor,
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: theme.primaryColor.withOpacity(0.1),
+                      child: Icon(
+                        Icons.person,
+                        color: theme.primaryColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          gaji.namaGuru,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            gaji.namaGuru,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
-                        ),
-                        Text(
-                          'Periode: $formattedPeriode',
-                          style: TextStyle(
-                            color: Colors.grey[600],
+                          Text(
+                            'Periode: $formattedPeriode',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: gaji.sudahDibayar ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        gaji.sudahDibayar ? 'Sudah Dibayar' : 'Belum Dibayar',
+                        style: TextStyle(
+                          color: gaji.sudahDibayar ? Colors.green : Colors.orange,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: gaji.sudahDibayar ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      gaji.sudahDibayar ? 'Sudah Dibayar' : 'Belum Dibayar',
-                      style: TextStyle(
-                        color: gaji.sudahDibayar ? Colors.green : Colors.orange,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Detail gaji
+                _buildDetailItem('Gaji Pokok', gaji.gajiPokokFormatted),
+                
+                const Divider(),
+                
+                // Detail kehadiran
+                _buildDetailItem('Jumlah Hadir', '${gaji.jumlahHadir} hari'),
+                _buildDetailItem('Jumlah Izin', '${gaji.jumlahIzin} hari'),
+                _buildDetailItem('Jumlah Sakit', '${gaji.jumlahSakit} hari'),
+                _buildDetailItem('Jumlah Alpa', '${gaji.jumlahAlpa} hari'),
+                
+                const Divider(),
+                
+                // Detail potongan
+                _buildDetailItem(
+                  'Potongan Izin', 
+                  '${gaji.jumlahIzin} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganIzin)}'
+                ),
+                _buildDetailItem(
+                  'Potongan Sakit', 
+                  '${gaji.jumlahSakit} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganSakit)}'
+                ),
+                _buildDetailItem(
+                  'Potongan Alpa', 
+                  '${gaji.jumlahAlpa} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganAlpa)}'
+                ),
+                
+                const Divider(),
+                
+                // Total
+                _buildDetailItem('Total Potongan', gaji.totalPotonganFormatted, isTotal: true),
+                _buildDetailItem('Total Gaji', gaji.totalGajiFormatted, isTotal: true, highlight: true),
+                
+                const SizedBox(height: 24),
+                
+                // Tombol
+                if (!gaji.sudahDibayar)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _bayarGaji(gaji);
+                      },
+                      icon: const Icon(Icons.payment),
+                      label: const Text('Tandai Sudah Dibayar'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              
-              // Detail gaji
-              _buildDetailItem('Gaji Pokok', gaji.gajiPokokFormatted),
-              
-              const Divider(),
-              
-              // Detail kehadiran
-              _buildDetailItem('Jumlah Hadir', '${gaji.jumlahHadir} hari'),
-              _buildDetailItem('Jumlah Izin', '${gaji.jumlahIzin} hari'),
-              _buildDetailItem('Jumlah Sakit', '${gaji.jumlahSakit} hari'),
-              _buildDetailItem('Jumlah Alpa', '${gaji.jumlahAlpa} hari'),
-              
-              const Divider(),
-              
-              // Detail potongan
-              _buildDetailItem(
-                'Potongan Izin', 
-                '${gaji.jumlahIzin} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganIzin)}'
-              ),
-              _buildDetailItem(
-                'Potongan Sakit', 
-                '${gaji.jumlahSakit} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganSakit)}'
-              ),
-              _buildDetailItem(
-                'Potongan Alpa', 
-                '${gaji.jumlahAlpa} × ${NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0).format(gaji.potonganAlpa)}'
-              ),
-              
-              const Divider(),
-              
-              // Total
-              _buildDetailItem('Total Potongan', gaji.totalPotonganFormatted, isTotal: true),
-              _buildDetailItem('Total Gaji', gaji.totalGajiFormatted, isTotal: true, highlight: true),
-              
-              const SizedBox(height: 24),
-              
-              // Tombol
-              if (!gaji.sudahDibayar)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _bayarGaji(gaji);
-                    },
-                    icon: const Icon(Icons.payment),
-                    label: const Text('Tandai Sudah Dibayar'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },

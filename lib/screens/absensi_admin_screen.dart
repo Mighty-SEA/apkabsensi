@@ -22,6 +22,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
   bool _isLoading = true;
   String _error = '';
   Map<String, String?> _absenStatus = {}; // idGuru: status
+  Map<String, String?> _jamPulang = {}; // idGuru: jamKeluar
   bool _isSubmitting = false;
   
   // Tambahkan tanggal yang dipilih
@@ -111,16 +112,19 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         
         // Update status absensi dari data yang ada
         Map<String, String?> absenStatus = {};
+        Map<String, String?> jamPulang = {};
         
         for (var absensi in absensiList) {
           final guruId = absensi['guruId'].toString();
           final status = absensi['status'];
           absenStatus[guruId] = status;
+          jamPulang[guruId] = absensi['jamKeluar'];
         }
         
         if (mounted) {
           setState(() {
             _absenStatus = absenStatus;
+            _jamPulang = jamPulang;
             _isLoading = false;
           });
         }
@@ -164,7 +168,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
 
-  Future<void> _absenGuru(String guruId, String status) async {
+  Future<void> _absenGuru(String guruId, String status, {bool showNotif = true}) async {
     setState(() {
       _isSubmitting = true;
     });
@@ -233,24 +237,29 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           }
         }
         
-        // Update UI setelah berhasil
+        // Cari nama guru dari _guruList
+        final guruNama = _guruList.firstWhere(
+          (g) => g.id == guruId,
+          orElse: () => Guru(id: guruId, nama: '', jenisKelamin: null, alamat: null, noTelp: null),
+        ).nama;
+        if (showNotif) {
+          Flushbar(
+            message: 'Absen $status berhasil untuk guru${guruNama.isNotEmpty ? ' $guruNama' : ' dengan ID $guruId'}',
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            flushbarPosition: FlushbarPosition.TOP,
+            borderRadius: BorderRadius.circular(12),
+            margin: const EdgeInsets.all(16),
+            icon: const Icon(Icons.check_circle, color: Colors.white),
+            shouldIconPulse: false,
+            isDismissible: true,
+            forwardAnimationCurve: Curves.easeOutBack,
+            reverseAnimationCurve: Curves.easeInBack,
+          )..show(context);
+        }
         setState(() {
           _absenStatus[guruId] = status;
         });
-        
-        Flushbar(
-          message: 'Absen $status berhasil untuk guru dengan ID $guruId',
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 3),
-          flushbarPosition: FlushbarPosition.TOP,
-          borderRadius: BorderRadius.circular(12),
-          margin: const EdgeInsets.all(16),
-          icon: const Icon(Icons.check_circle, color: Colors.white),
-          shouldIconPulse: false,
-          isDismissible: true,
-          forwardAnimationCurve: Curves.easeOutBack,
-          reverseAnimationCurve: Curves.easeInBack,
-        )..show(context);
       } else {
         throw Exception("Gagal memeriksa absensi: ${checkResponse.statusCode}");
       }
@@ -279,12 +288,10 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     setState(() {
       _isSubmitting = true;
     });
-    
     try {
       for (final guru in _guruList) {
-        await _absenGuru(guru.id, status);
+        await _absenGuru(guru.id, status, showNotif: false);
       }
-      
       Flushbar(
         message: 'Semua guru telah diubah status menjadi $status',
         backgroundColor: Colors.green,
@@ -350,7 +357,129 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
   
+  Future<void> _absenPulangGuru(String guruId, {bool showNotif = true}) async {
+    setState(() {
+      _isSubmitting = true;
+    });
+    try {
+      final token = await _apiService.getToken();
+      if (token == null) {
+        throw Exception("Token tidak tersedia");
+      }
+      final url = "${ApiService.baseUrl}${ApiService.absensiEndpoint}?tanggal=${_apiFormattedDate}&guruId=$guruId";
+      final checkResponse = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+      if (checkResponse.statusCode == 200) {
+        final data = jsonDecode(checkResponse.body);
+        final absensiList = data['absensi'] ?? [];
+        if (absensiList.isNotEmpty) {
+          final absensiId = absensiList[0]['id'];
+          final updateUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}/$absensiId";
+          final updateResponse = await http.put(
+            Uri.parse(updateUrl),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'jamKeluar': DateTime.now().toIso8601String(),
+            }),
+          );
+          if (updateResponse.statusCode != 200) {
+            throw Exception("Gagal update jam pulang: ${updateResponse.statusCode}");
+          }
+          if (showNotif) {
+            Flushbar(
+              message: 'Absen pulang berhasil',
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
+              flushbarPosition: FlushbarPosition.TOP,
+              borderRadius: BorderRadius.circular(12),
+              margin: const EdgeInsets.all(16),
+              icon: const Icon(Icons.check_circle, color: Colors.white),
+              shouldIconPulse: false,
+              isDismissible: true,
+              forwardAnimationCurve: Curves.easeOutBack,
+              reverseAnimationCurve: Curves.easeInBack,
+            )..show(context);
+          }
+          setState(() {
+            // Status tetap, hanya update jam pulang
+            _jamPulang[guruId] = DateTime.now().toIso8601String();
+          });
+        } else {
+          throw Exception("Belum ada absensi masuk untuk guru ini");
+        }
+      } else {
+        throw Exception("Gagal memeriksa absensi: ${checkResponse.statusCode}");
+      }
+    } catch (e) {
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
 
+  Future<void> _absenPulangSemua() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+    try {
+      for (final guru in _guruList) {
+        await _absenPulangGuru(guru.id, showNotif: false);
+      }
+      Flushbar(
+        message: 'Semua guru telah absen pulang',
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
+    } catch (e) {
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -470,11 +599,11 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: _isSubmitting ? null : () => _absenSemua('IZIN'),
-                        icon: const Icon(Icons.assignment_late, size: 20),
-                        label: const Text('Izin Semua'),
+                        onPressed: _isSubmitting ? null : _absenPulangSemua,
+                        icon: const Icon(Icons.logout, size: 20),
+                        label: const Text('Pulang Semua'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
@@ -536,53 +665,88 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          guru.nama,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                guru.nama,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                            ),
+                                            // Tombol Pulang di ujung kanan sejajar nama
+                                            _AbsenButton(
+                                              label: 'Pulang',
+                                              color: Colors.blue,
+                                              selected: _jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty,
+                                              onTap: _isSubmitting ? null : () => _absenPulangGuru(guru.id),
+                                            ),
+                                          ],
                                         ),
-                                        if (status != null)
-                                          Container(
-                                            margin: const EdgeInsets.only(top: 4),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: _getColorForStatus(status).withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: Text(
-                                              status,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: _getColorForStatus(status),
-                                                fontWeight: FontWeight.w500,
+                                        // Status dan jam pulang di bawah nama
+                                        Row(
+                                          children: [
+                                            if (status != null)
+                                              Container(
+                                                margin: const EdgeInsets.only(top: 4, right: 8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: _getColorForStatus(status).withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: Text(
+                                                  status,
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: _getColorForStatus(status),
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              )
+                                            else
+                                              Container(
+                                                margin: const EdgeInsets.only(top: 4, right: 8),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(20),
+                                                ),
+                                                child: const Text(
+                                                  'BELUM ABSEN',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            // Jam pulang
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 4),
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: (_jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty)
+                                                    ? Colors.blue.withOpacity(0.1)
+                                                    : Colors.red.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                (_jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty)
+                                                    ? 'Pulang: ' + DateFormat('HH:mm', 'id_ID').format(DateTime.tryParse(_jamPulang[guru.id]!) ?? DateTime(0))
+                                                    : 'Belum Pulang',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: (_jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty)
+                                                      ? Colors.blue
+                                                      : Colors.red,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
-                                          )
-                                        else
-                                          Container(
-                                            margin: const EdgeInsets.only(top: 4),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: const Text(
-                                              'BELUM ABSEN',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),

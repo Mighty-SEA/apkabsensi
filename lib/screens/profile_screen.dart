@@ -58,28 +58,43 @@ class ProfileScreen extends StatelessWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            if (user?.role == 'ADMIN') 
-                              IconButton(
-                                onPressed: () {
+                            PopupMenuButton<int>(
+                              icon: const Icon(Icons.settings, color: Colors.white),
+                              tooltip: 'Pengaturan',
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              onSelected: (value) {
+                                if (value == 1) {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(builder: (context) => const PengaturanGajiScreen()),
                                   );
-                                },
-                                icon: const Icon(
-                                  Icons.monetization_on,
-                                  color: Colors.white,
+                                } else if (value == 2) {
+                                  // Aksi untuk menu lain, misal tentang aplikasi
+                                }
+                              },
+                              itemBuilder: (context) => [
+                                if (user?.role == 'ADMIN')
+                                  PopupMenuItem(
+                                    value: 1,
+                                    child: Row(
+                                      children: const [
+                                        Icon(Icons.monetization_on, color: Colors.blue),
+                                        SizedBox(width: 8),
+                                        Text('Pengaturan Gaji'),
+                                      ],
+                                    ),
+                                  ),
+                                PopupMenuItem(
+                                  value: 2,
+                                  child: Row(
+                                    children: const [
+                                      Icon(Icons.info_outline, color: Colors.grey),
+                                      SizedBox(width: 8),
+                                      Text('Tentang Aplikasi'),
+                                    ],
+                                  ),
                                 ),
-                                tooltip: 'Pengaturan Gaji',
-                              ),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              onPressed: () {},
-                              icon: const Icon(
-                                Icons.settings,
-                                color: Colors.white,
-                              ),
-                              tooltip: 'Pengaturan',
+                              ],
                             ),
                           ],
                         ),
@@ -205,21 +220,6 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              
-              const SizedBox(height: 30),
-
-              // Tampilkan tombol manajemen guru hanya untuk admin
-              if (user?.role == 'ADMIN')
-                _buildActionCard(
-                  context,
-                  'Manajemen Guru',
-                  'Kelola data guru',
-                  Icons.people,
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ManajemenGuruScreen()),
-                  ),
-                ),
             ],
           ),
         ),
@@ -324,46 +324,5 @@ class ProfileScreen extends StatelessWidget {
         );
       }
     }
-  }
-
-  Widget _buildActionCard(BuildContext context, String title, String description, IconData icon, VoidCallback onPressed) {
-    final theme = Theme.of(context);
-    
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: ListTile(
-          leading: Icon(
-            icon,
-            color: theme.colorScheme.primary,
-            size: 24,
-          ),
-          title: Text(
-            title,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: theme.colorScheme.primary,
-            ),
-          ),
-          subtitle: Text(
-            description,
-            style: TextStyle(
-              color: Colors.grey[600],
-            ),
-          ),
-          trailing: Icon(
-            Icons.arrow_forward_ios,
-            size: 16,
-            color: Colors.grey[400],
-          ),
-          onTap: onPressed,
-        ),
-      ),
-    );
   }
 } 
