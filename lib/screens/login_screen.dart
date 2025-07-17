@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'main_screen.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -68,18 +69,19 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           _errorMessage = authProvider.errorMessage;
         });
         if (!_errorMessage.contains('Username atau password salah')) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_errorMessage),
-              backgroundColor: Theme.of(context).colorScheme.error,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              margin: const EdgeInsets.all(12),
-              duration: const Duration(seconds: 5),
-            ),
-          );
+          Flushbar(
+            message: _errorMessage,
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: const Duration(seconds: 3),
+            flushbarPosition: FlushbarPosition.TOP,
+            borderRadius: BorderRadius.circular(12),
+            margin: const EdgeInsets.all(16),
+            icon: const Icon(Icons.error, color: Colors.white),
+            shouldIconPulse: false,
+            isDismissible: true,
+            forwardAnimationCurve: Curves.easeOutBack,
+            reverseAnimationCurve: Curves.easeInBack,
+          )..show(context);
         }
       }
     }
@@ -255,8 +257,6 @@ class _CircleBackground extends StatelessWidget {
     );
   }
 }
-
-
 
 class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/guru_model.dart';
 import '../services/api_service.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class ManajemenGuruScreen extends StatefulWidget {
   const ManajemenGuruScreen({Key? key}) : super(key: key);
@@ -397,31 +398,52 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
               Navigator.pop(context);
                                         
                                         if (result['success']) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(result['message'] ?? (guru == null ? 'Guru berhasil ditambahkan' : 'Guru berhasil diupdate')),
-                                              backgroundColor: Colors.green,
-                                            ),
-              );
+              Flushbar(
+                message: result['message'] ?? (guru == null ? 'Guru berhasil ditambahkan' : 'Guru berhasil diupdate'),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 3),
+                flushbarPosition: FlushbarPosition.TOP,
+                borderRadius: BorderRadius.circular(12),
+                margin: const EdgeInsets.all(16),
+                icon: const Icon(Icons.check_circle, color: Colors.white),
+                shouldIconPulse: false,
+                isDismissible: true,
+                forwardAnimationCurve: Curves.easeOutBack,
+                reverseAnimationCurve: Curves.easeInBack,
+              )..show(context);
               _fetchGuru();
                                         } else {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Text(result['message'] ?? 'Terjadi kesalahan'),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
+                                          Flushbar(
+                                            message: result['message'] ?? 'Terjadi kesalahan',
+                                            backgroundColor: Colors.red,
+                                            duration: const Duration(seconds: 3),
+                                            flushbarPosition: FlushbarPosition.TOP,
+                                            borderRadius: BorderRadius.circular(12),
+                                            margin: const EdgeInsets.all(16),
+                                            icon: const Icon(Icons.error, color: Colors.white),
+                                            shouldIconPulse: false,
+                                            isDismissible: true,
+                                            forwardAnimationCurve: Curves.easeOutBack,
+                                            reverseAnimationCurve: Curves.easeInBack,
+                                          )..show(context);
                                         }
                                       } catch (e) {
                                         setState(() {
                                           _isSubmitting = false;
                                         });
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Terjadi kesalahan: $e'),
-                                            backgroundColor: Colors.red,
-                                          ),
-                                        );
+                                        Flushbar(
+                                          message: 'Terjadi kesalahan: $e',
+                                          backgroundColor: Colors.red,
+                                          duration: const Duration(seconds: 3),
+                                          flushbarPosition: FlushbarPosition.TOP,
+                                          borderRadius: BorderRadius.circular(12),
+                                          margin: const EdgeInsets.all(16),
+                                          icon: const Icon(Icons.error, color: Colors.white),
+                                          shouldIconPulse: false,
+                                          isDismissible: true,
+                                          forwardAnimationCurve: Curves.easeOutBack,
+                                          reverseAnimationCurve: Curves.easeInBack,
+                                        )..show(context);
                                       }
                                     }
                                   },
@@ -543,34 +565,55 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
       final result = await _apiService.deleteGuru(guru.id);
       
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Guru berhasil dihapus'),
-            backgroundColor: Colors.green,
-          ),
-    );
-    _fetchGuru();
+        Flushbar(
+          message: result['message'] ?? 'Guru berhasil dihapus',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
+        _fetchGuru();
       } else {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Gagal menghapus guru'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: result['message'] ?? 'Gagal menghapus guru',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.error, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     }
   }
 

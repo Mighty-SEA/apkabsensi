@@ -10,6 +10,7 @@ import 'absensi_admin_screen.dart';
 import 'manajemen_guru_screen.dart';
 import 'rekap_absensi_screen.dart';
 import 'manajemen_gaji_screen.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -1136,9 +1137,19 @@ class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMi
                                         TextButton(
                                           onPressed: () {
                                             // Navigasi ke halaman detail absensi (bisa diimplementasikan nanti)
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('Menampilkan semua absensi')),
-                                            );
+                                            Flushbar(
+                                              message: 'Menampilkan semua absensi',
+                                              backgroundColor: theme.colorScheme.primary,
+                                              duration: const Duration(seconds: 2),
+                                              flushbarPosition: FlushbarPosition.TOP,
+                                              borderRadius: BorderRadius.circular(12),
+                                              margin: const EdgeInsets.all(16),
+                                              icon: const Icon(Icons.info, color: Colors.white),
+                                              shouldIconPulse: false,
+                                              isDismissible: true,
+                                              forwardAnimationCurve: Curves.easeOutBack,
+                                              reverseAnimationCurve: Curves.easeInBack,
+                                            )..show(context);
                                           },
                                           child: Text(
                                             'Lihat Semua',

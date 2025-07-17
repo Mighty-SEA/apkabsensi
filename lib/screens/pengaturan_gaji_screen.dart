@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../models/pengaturan_gaji_model.dart';
 import '../models/guru_model.dart';
 import '../services/api_service.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class PengaturanGajiScreen extends StatefulWidget {
   const PengaturanGajiScreen({Key? key}) : super(key: key);
@@ -195,45 +196,73 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
       });
       
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan gaji global berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Flushbar(
+          message: 'Pengaturan gaji global berhasil disimpan',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
         
         // Reload data
         _loadData();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Gagal menyimpan pengaturan gaji global'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: result['message'] ?? 'Gagal menyimpan pengaturan gaji global',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.error, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     }
   }
   
   Future<void> _savePerGuruSettings() async {
     if (_selectedGuruId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih guru terlebih dahulu'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Pilih guru terlebih dahulu',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
       return;
     }
     
@@ -262,45 +291,73 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
       });
       
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan gaji guru berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Flushbar(
+          message: 'Pengaturan gaji guru berhasil disimpan',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
         
         // Reload data
         _loadData();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Gagal menyimpan pengaturan gaji guru'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: result['message'] ?? 'Gagal menyimpan pengaturan gaji guru',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.error, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     }
   }
   
   Future<void> _resetPerGuruSettings() async {
     if (_selectedGuruId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pilih guru terlebih dahulu'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Pilih guru terlebih dahulu',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
       return;
     }
     
@@ -341,12 +398,19 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
       });
       
       if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pengaturan gaji guru berhasil direset ke global'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Flushbar(
+          message: 'Pengaturan gaji guru berhasil direset ke global',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
         
         // Reset form to global values
         _gajiPokokGuruController.text = _pengaturanGajiGlobal!.gajiPokok.toString();
@@ -359,24 +423,38 @@ class _PengaturanGajiScreenState extends State<PengaturanGajiScreen> {
           _pengaturanPerGuru.remove(_selectedGuruId);
         });
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Gagal mereset pengaturan gaji guru'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        Flushbar(
+          message: result['message'] ?? 'Gagal mereset pengaturan gaji guru',
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.error, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
       }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     }
   }
   

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import '../models/guru_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import 'package:another_flushbar/flushbar.dart';
 
 class AbsensiAdminScreen extends StatefulWidget {
   const AbsensiAdminScreen({Key? key}) : super(key: key);
@@ -237,22 +238,36 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           _absenStatus[guruId] = status;
         });
         
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Absen $status berhasil untuk guru dengan ID $guruId'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        Flushbar(
+          message: 'Absen $status berhasil untuk guru dengan ID $guruId',
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP,
+          borderRadius: BorderRadius.circular(12),
+          margin: const EdgeInsets.all(16),
+          icon: const Icon(Icons.check_circle, color: Colors.white),
+          shouldIconPulse: false,
+          isDismissible: true,
+          forwardAnimationCurve: Curves.easeOutBack,
+          reverseAnimationCurve: Curves.easeInBack,
+        )..show(context);
       } else {
         throw Exception("Gagal memeriksa absensi: ${checkResponse.statusCode}");
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     } finally {
       setState(() {
         _isSubmitting = false;
@@ -270,19 +285,33 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         await _absenGuru(guru.id, status);
       }
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Semua guru telah diubah status menjadi $status'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      Flushbar(
+        message: 'Semua guru telah diubah status menjadi $status',
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
     } finally {
       setState(() {
         _isSubmitting = false;

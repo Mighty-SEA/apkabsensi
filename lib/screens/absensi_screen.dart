@@ -9,6 +9,7 @@ import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'package:flutter/foundation.dart'; // Added for kDebugMode
+import 'package:another_flushbar/flushbar.dart';
 
 // Komentar: Perbaikan pada 2023-07-18 untuk isu tampilan tombol absen
 
@@ -400,19 +401,19 @@ class _AbsensiScreenState extends State<AbsensiScreen> with AutomaticKeepAliveCl
   
   void _showMessage(String message, {bool isError = false, Color? backgroundColor}) {
     if (!mounted) return;
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: backgroundColor ?? (isError ? Colors.red : Colors.green),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-        margin: const EdgeInsets.all(12),
-        duration: const Duration(seconds: 5),
-      ),
-    );
+    Flushbar(
+      message: message,
+      backgroundColor: backgroundColor ?? (isError ? Colors.red : Colors.green),
+      duration: const Duration(seconds: 3),
+      flushbarPosition: FlushbarPosition.TOP,
+      borderRadius: BorderRadius.circular(12),
+      margin: const EdgeInsets.all(16),
+      icon: Icon(isError ? Icons.error : Icons.check_circle, color: Colors.white),
+      shouldIconPulse: false,
+      isDismissible: true,
+      forwardAnimationCurve: Curves.easeOutBack,
+      reverseAnimationCurve: Curves.easeInBack,
+    )..show(context);
   }
   
   // Format tanggal untuk display
