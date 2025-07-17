@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/auth_provider.dart';
@@ -60,6 +61,16 @@ class MyApp extends StatelessWidget {
             return MaterialApp(
               title: 'Aplikasi Absensi',
               debugShowCheckedModeBanner: false,
+              // Tambahkan dukungan lokalisasi
+              localizationsDelegates: const [
+                ...GlobalMaterialLocalizations.delegates,
+                GlobalWidgetsLocalizations.delegate,
+              ],
+              supportedLocales: const [
+                Locale('id', 'ID'),
+                Locale('en', 'US'),
+              ],
+              locale: const Locale('id', 'ID'),
               // Optimalkan performa dengan builder
               builder: (context, child) {
                 // Tambahkan scrollbehavior global untuk scrolling yang smooth

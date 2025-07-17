@@ -19,6 +19,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   String _errorMessage = '';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  bool _isServerOnline = false;
+  String _serverStatus = 'Memeriksa status server...';
+  bool _isCheckingServer = false;
 
   @override
   void initState() {
@@ -32,14 +35,28 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       curve: Curves.easeInOut,
     );
     _animationController.forward();
-    // HAPUS dummy error
-    // Future.delayed(const Duration(milliseconds: 500), () {
-    //   if (mounted) {
-    //     setState(() {
-    //       _errorMessage = 'Username atau password salah. Silakan coba lagi.';
-    //     });
-    //   }
-    // });
+    
+    // Periksa status server saat halaman dibuka
+    _checkServerStatus();
+  }
+  
+  // Fungsi untuk memeriksa status server
+  Future<void> _checkServerStatus() async {
+    if (_isCheckingServer) return;
+    
+    setState(() {
+      _isCheckingServer = true;
+      _serverStatus = 'Memeriksa status server...';
+    });
+    
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final result = await authProvider.checkServerConnection();
+    
+    setState(() {
+      _isServerOnline = result['success'];
+      _serverStatus = result['message'];
+      _isCheckingServer = false;
+    });
   }
 
   @override
@@ -99,23 +116,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
   }
 
-  // Fungsi helper untuk mencoba terhubung ke server dan cek URL
-  void _checkServerConnection() async {
-    setState(() {
-      _errorMessage = 'Memeriksa koneksi ke server...';
-    });
-    
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final result = await authProvider.checkServerConnection();
-    
-    setState(() {
-      if (result['success']) {
-        _errorMessage = 'Koneksi ke server berhasil! Silakan coba login.';
-      } else {
-        _errorMessage = result['message'];
-      }
-    });
-  }
+  // Fungsi ini tidak digunakan lagi - kita menggunakan _checkServerStatus sebagai gantinya
 
   @override
   Widget build(BuildContext context) {
@@ -155,6 +156,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           isLoginError: isLoginError,
                           errorMessage: _errorMessage,
                           clearError: _clearError,
+                          isServerOnline: _isServerOnline,
+                          serverStatus: _serverStatus,
+                          isCheckingServer: _isCheckingServer,
+                          onCheckServer: _checkServerStatus,
                           loginButton: Consumer<AuthProvider>(
                             builder: (context, auth, child) {
                               return SizedBox(
@@ -264,6 +269,75 @@ class _CircleBackground extends StatelessWidget {
   }
 }
 
+class _ServerStatusIndicator extends StatelessWidget {
+  final bool isOnline;
+  final String statusMessage;
+  final bool isChecking;
+  final VoidCallback onRefresh;
+
+  const _ServerStatusIndicator({
+    required this.isOnline,
+    required this.statusMessage,
+    required this.isChecking,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    Color statusColor = isOnline ? Colors.green : Colors.red;
+    IconData statusIcon = isOnline ? Icons.check_circle : Icons.error_outline;
+    
+    if (isChecking) {
+      statusColor = Colors.orange;
+      statusIcon = Icons.sync;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: statusColor.withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          if (isChecking)
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+              ),
+            )
+          else
+            Icon(statusIcon, color: statusColor, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              statusMessage,
+              style: TextStyle(
+                color: statusColor,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 16),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: isChecking ? null : onRefresh,
+            color: statusColor,
+            tooltip: 'Refresh',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController usernameController;
@@ -274,6 +348,10 @@ class _LoginForm extends StatelessWidget {
   final String errorMessage;
   final VoidCallback clearError;
   final Widget loginButton;
+  final bool isServerOnline;
+  final String serverStatus;
+  final bool isCheckingServer;
+  final VoidCallback onCheckServer;
   const _LoginForm({
     required this.formKey,
     required this.usernameController,
@@ -284,6 +362,10 @@ class _LoginForm extends StatelessWidget {
     required this.errorMessage,
     required this.clearError,
     required this.loginButton,
+    required this.isServerOnline,
+    required this.serverStatus,
+    required this.isCheckingServer,
+    required this.onCheckServer,
   });
   @override
   Widget build(BuildContext context) {
@@ -460,12 +542,20 @@ class _LoginForm extends StatelessWidget {
               ),
             ),
           const SizedBox(height: 24),
+          // Status Server
+          _ServerStatusIndicator(
+            isOnline: isServerOnline,
+            statusMessage: serverStatus,
+            isChecking: isCheckingServer,
+            onRefresh: onCheckServer,
+          ),
+          const SizedBox(height: 16),
           // Bantuan
           Center(
             child: TextButton.icon(
-              onPressed: () => FocusScope.of(context).unfocus(),
-              icon: const Icon(Icons.help_outline_rounded),
-              label: const Text('Masalah koneksi?'),
+              onPressed: onCheckServer,
+              icon: const Icon(Icons.wifi_rounded),
+              label: const Text('Periksa Koneksi Server'),
             ),
           ),
         ],

@@ -186,25 +186,61 @@ class ApiService {
     }
     
     try {
+      _logger.d('Checking server connection to: $baseUrl/test-token');
+      
+      // Catat waktu mulai untuk menghitung latensi
+      final startTime = DateTime.now();
+      
       final response = await _client.get(
         Uri.parse('$baseUrl/test-token'),
       ).timeout(_requestTimeout);
       
+      // Hitung latensi
+      final endTime = DateTime.now();
+      final latencyMs = endTime.difference(startTime).inMilliseconds;
+      
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+      
+      // Buat pesan status berdasarkan latensi dan status kode
+      String statusMessage;
+      if (isSuccess) {
+        String latencyLevel;
+        if (latencyMs < 200) {
+          latencyLevel = 'Sangat Baik';
+        } else if (latencyMs < 500) {
+          latencyLevel = 'Baik';
+        } else if (latencyMs < 1000) {
+          latencyLevel = 'Cukup';
+        } else {
+          latencyLevel = 'Lambat';
+        }
+        
+        statusMessage = 'Server Online (Latensi: $latencyMs ms - $latencyLevel)';
+      } else {
+        statusMessage = 'Server Error (Kode: ${response.statusCode})';
+      }
+      
       return {
-        'success': response.statusCode >= 200 && response.statusCode < 300,
-        'message': response.statusCode >= 200 && response.statusCode < 300 
-            ? 'Koneksi ke server berhasil' 
-            : 'Koneksi ke server gagal dengan kode ${response.statusCode}'
+        'success': isSuccess,
+        'message': statusMessage,
+        'latency': latencyMs,
+        'url': baseUrl,
+        'statusCode': response.statusCode
       };
     } catch (e) {
       _logger.e('Error checking server connection: $e');
       String errorMessage = 'Tidak dapat terhubung ke server';
       if (e is SocketException) {
-        errorMessage = 'Server tidak dapat dijangkau. Periksa alamat dan port server.';
+        errorMessage = 'Server tidak dapat dijangkau (${baseUrl})';
       } else if (e is TimeoutException) {
-        errorMessage = 'Koneksi ke server timeout. Server mungkin lambat atau tidak responsif.';
+        errorMessage = 'Koneksi ke server timeout (${baseUrl})';
       }
-      return {'success': false, 'message': errorMessage};
+      return {
+        'success': false, 
+        'message': errorMessage,
+        'url': baseUrl,
+        'error': e.toString()
+      };
     }
   }
 
