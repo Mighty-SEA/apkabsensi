@@ -16,8 +16,8 @@ class ApiService {
   // Ganti dengan URL API Anda
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
-  // static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
+  // static const String baseUrl = 'http://localhost:3000/api';
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
   
@@ -27,6 +27,7 @@ class ApiService {
   static const String testTokenEndpoint = '/test-token';
   static const String guruEndpoint = '/guru';
   static const String absensiEndpoint = '/absensi';
+  static const String absensiCheckoutEndpoint = '/absensi/checkout';
   static const String pengaturanGajiEndpoint = '/pengaturan-gaji';
   static const String gajiGuruEndpoint = '/gaji';
 
