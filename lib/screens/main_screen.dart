@@ -56,7 +56,9 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
   void _logout() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.logout();
-    
+    setState(() {
+      _selectedIndex = 0;
+    });
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -141,6 +143,11 @@ class _MainScreenState extends State<MainScreen> with SingleTickerProviderStateM
           'label': 'Profil',
         },
       ];
+    }
+
+    // Pastikan _selectedIndex tidak melebihi jumlah tab
+    if (_selectedIndex >= widgetOptions.length) {
+      _selectedIndex = 0;
     }
     
     // Menggunakan AnnotatedRegion untuk mengatur warna navbar dan statusbar

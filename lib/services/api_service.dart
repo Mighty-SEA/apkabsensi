@@ -16,8 +16,8 @@ class ApiService {
   // Ganti dengan URL API Anda
   // Gunakan 10.0.2.2 untuk emulator Android (localhost dari emulator)
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
-  // static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
-  static const String baseUrl = 'http://localhost:3000/api';
+  static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
+  // static const String baseUrl = 'http://localhost:3000/api';
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
   
@@ -348,6 +348,31 @@ class ApiService {
   // Verifikasi token masih valid
   Future<Map<String, dynamic>> testToken() async {
     return await _fetchWithRetry(testTokenEndpoint, useCache: false);
+  }
+
+  // Fungsi untuk cek status endpoint /api
+  Future<Map<String, dynamic>> checkApiStatus() async {
+    if (!await hasInternetConnection()) {
+      return {'success': false, 'message': 'Tidak ada koneksi internet'};
+    }
+    try {
+      final response = await _client.get(
+        Uri.parse(baseUrl),
+      ).timeout(_requestTimeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Cek apakah sesuai format yang diharapkan
+        if (data['status'] == 'ok' && data['message'] == 'API Absensi Backend aktif') {
+          return {'success': true, 'data': data};
+        } else {
+          return {'success': false, 'message': 'Format respons tidak sesuai', 'data': data};
+        }
+      } else {
+        return {'success': false, 'message': 'Status code:  [${response.statusCode}]', 'data': response.body};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
   }
 
   // Fungsi untuk mendapatkan data dengan token dan retry

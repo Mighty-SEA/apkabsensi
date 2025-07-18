@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import 'main_screen.dart';
 import 'package:another_flushbar/flushbar.dart';
 import 'dart:async';
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,6 +26,13 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Duration _rateLimitDuration = const Duration(minutes: 15);
   Timer? _countdownTimer;
   int _secondsLeft = 0;
+  // Tambahan untuk status server
+  bool? _serverOk;
+  bool _loadingServer = false;
+  String _serverMsg = '';
+  // Tambahkan variabel untuk animasi kedip
+  Timer? _blinkTimer;
+  double _circleOpacity = 1.0;
 
   @override
   void initState() {
@@ -38,6 +46,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+    _checkApiStatus();
+    _startBlinking();
+  }
+
+  void _startBlinking() {
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer.periodic(const Duration(milliseconds: 350), (timer) {
+      setState(() {
+        _circleOpacity = _circleOpacity == 1.0 ? 0.3 : 1.0;
+      });
+    });
   }
 
   @override
@@ -46,6 +65,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _passwordController.dispose();
     _animationController.dispose();
     _countdownTimer?.cancel();
+    _blinkTimer?.cancel();
     super.dispose();
   }
 
@@ -143,6 +163,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
   }
 
+  Future<void> _checkApiStatus() async {
+    setState(() {
+      _loadingServer = true;
+    });
+    final result = await ApiService().checkApiStatus();
+    setState(() {
+      _loadingServer = false;
+      if (result['success'] == true) {
+        _serverOk = true;
+        _serverMsg = 'server status ok';
+      } else if (result['message'] == 'Tidak ada koneksi internet') {
+        _serverOk = null;
+        _serverMsg = 'tidak ada koneksi internet';
+      } else {
+        _serverOk = false;
+        _serverMsg = 'kesalahan server';
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -163,6 +203,60 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           child: Stack(
             children: [
               const _LoginBackground(),
+              // Indikator status server di pojok kiri atas
+              Positioned(
+                top: 16,
+                left: 16,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _loadingServer
+                            ? SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : AnimatedOpacity(
+                                duration: const Duration(milliseconds: 200),
+                                opacity: _circleOpacity,
+                                child: Container(
+                                  width: 16,
+                                  height: 16,
+                                  decoration: BoxDecoration(
+                                    color: _serverOk == true
+                                        ? Colors.green
+                                        : _serverOk == null
+                                            ? Colors.orange
+                                            : Colors.red,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _serverOk == true
+                              ? 'server status ok'
+                              : _serverOk == null
+                                  ? 'tidak ada koneksi internet'
+                                  : 'kesalahan server',
+                          style: TextStyle(
+                            color: _serverOk == true
+                                ? Colors.green
+                                : _serverOk == null
+                                    ? Colors.orange
+                                    : Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
+                ),
+              ),
               Center(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -174,70 +268,141 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         opacity: _fadeAnimation,
                         child: Column(
                           children: [
-                            _LoginForm(
-                              formKey: _formKey,
-                              usernameController: _usernameController,
-                              passwordController: _passwordController,
-                              obscurePassword: _obscurePassword,
-                              onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-                              isLoginError: isLoginError,
-                              errorMessage: _errorMessage,
-                              clearError: _clearError,
-                              loginButton: Consumer<AuthProvider>(
-                                builder: (context, auth, child) {
-                                  return SizedBox(
-                                    height: 48,
-                                    child: ElevatedButton(
-                                      onPressed: (auth.isLoginLoading || _rateLimitStart != null) ? null : _login,
-                                      style: ElevatedButton.styleFrom(
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        backgroundColor: theme.colorScheme.primary,
-                                        foregroundColor: Colors.white,
-                                      ),
-                                      child: auth.isLoginLoading
-                                          ? Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                const SizedBox(
-                                                  width: 22,
-                                                  height: 22,
-                                                  child: CircularProgressIndicator(
-                                                    color: Colors.white,
-                                                    strokeWidth: 2,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                const Text(
-                                                  'Memproses...',
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ],
-                                            )
-                                          : const Text(
-                                              'MASUK',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                    ),
-                                  );
-                                },
+                            const Hero(
+                              tag: 'app_logo',
+                              child: RepaintBoundary(
+                                child: _LogoWidget(),
                               ),
                             ),
-                            if (_rateLimitStart != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 16.0),
+                            const SizedBox(height: 24),
+                            const Hero(
+                              tag: 'app_title',
+                              child: Material(
+                                color: Colors.transparent,
                                 child: Text(
-                                  'Coba login lagi dalam ${_secondsLeft ~/ 60}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
-                                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                  'Aplikasi Absensi',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 28,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF4361EE),
+                                  ),
                                 ),
                               ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _serverOk == null
+                                  ? 'Perangkat Anda tidak terhubung ke internet.\nPastikan Wi-Fi atau data seluler aktif dan stabil.'
+                                  : _serverOk == false
+                                      ? 'Kami tidak dapat terhubung ke server saat ini.\nSilakan coba lagi beberapa saat lagi.'
+                                      : 'Masuk untuk melanjutkan',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF6C757D),
+                              ),
+                            ),
+                            const SizedBox(height: 32),
+                            if (_serverOk == true) ...[
+                              _LoginForm(
+                                formKey: _formKey,
+                                usernameController: _usernameController,
+                                passwordController: _passwordController,
+                                obscurePassword: _obscurePassword,
+                                onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                                isLoginError: isLoginError,
+                                errorMessage: _errorMessage,
+                                clearError: _clearError,
+                                loginButton: Consumer<AuthProvider>(
+                                  builder: (context, auth, child) {
+                                    return SizedBox(
+                                      height: 48,
+                                      child: ElevatedButton(
+                                        onPressed: (auth.isLoginLoading || _rateLimitStart != null) ? null : _login,
+                                        style: ElevatedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          backgroundColor: theme.colorScheme.primary,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: auth.isLoginLoading
+                                            ? Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  const SizedBox(
+                                                    width: 22,
+                                                    height: 22,
+                                                    child: CircularProgressIndicator(
+                                                      color: Colors.white,
+                                                      strokeWidth: 2,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 12),
+                                                  const Text(
+                                                    'Memproses...',
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              )
+                                            : const Text(
+                                                'MASUK',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              if (_rateLimitStart != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 16.0),
+                                  child: Text(
+                                    'Coba login lagi dalam ${_secondsLeft ~/ 60}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
+                                    style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 20.0),
+                                child: TextButton.icon(
+                                  onPressed: _loadingServer ? null : _checkApiStatus,
+                                  icon: const Icon(Icons.refresh, color: Colors.blue),
+                                  label: const Text(
+                                    'Cek Koneksi',
+                                    style: TextStyle(color: Colors.blue, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            ] else ...[
+                              const SizedBox(height: 32),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 56,
+                                child: ElevatedButton.icon(
+                                  onPressed: _loadingServer ? null : _checkApiStatus,
+                                  icon: const Icon(Icons.refresh, size: 28, color: Colors.white),
+                                  label: const Text(
+                                    'Cek Koneksi',
+                                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                                  ),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    minimumSize: const Size.fromHeight(56),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(14),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -332,40 +497,6 @@ class _LoginForm extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Logo
-          const Hero(
-            tag: 'app_logo',
-            child: RepaintBoundary(
-              child: _LogoWidget(),
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Judul
-          const Hero(
-            tag: 'app_title',
-            child: Material(
-              color: Colors.transparent,
-              child: Text(
-                'Aplikasi Absensi',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF4361EE),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Masuk untuk melanjutkan',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: Color(0xFF6C757D),
-            ),
-          ),
-          const SizedBox(height: 32),
           // Username
           TextFormField(
             controller: usernameController,
@@ -499,15 +630,6 @@ class _LoginForm extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 24),
-          // Bantuan
-          Center(
-            child: TextButton.icon(
-              onPressed: () => FocusScope.of(context).unfocus(),
-              icon: const Icon(Icons.help_outline_rounded),
-              label: const Text('Masalah koneksi?'),
-            ),
-          ),
         ],
       ),
     );
