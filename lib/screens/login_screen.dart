@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'main_screen.dart';
 import 'package:another_flushbar/flushbar.dart';
+import 'dart:async';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +21,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   String _errorMessage = '';
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
+  DateTime? _rateLimitStart;
+  Duration _rateLimitDuration = const Duration(minutes: 15);
+  Timer? _countdownTimer;
+  int _secondsLeft = 0;
 
   @override
   void initState() {
@@ -40,11 +45,35 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _usernameController.dispose();
     _passwordController.dispose();
     _animationController.dispose();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
+  void _startRateLimitCountdown() {
+    setState(() {
+      _rateLimitStart = DateTime.now();
+      _secondsLeft = _rateLimitDuration.inSeconds;
+    });
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      final elapsed = DateTime.now().difference(_rateLimitStart!);
+      final left = _rateLimitDuration - elapsed;
+      if (left.isNegative) {
+        timer.cancel();
+        setState(() {
+          _rateLimitStart = null;
+          _secondsLeft = 0;
+        });
+      } else {
+        setState(() {
+          _secondsLeft = left.inSeconds;
+        });
+      }
+    });
+  }
+
   void _login() async {
-    if (_formKey.currentState!.validate()) {
+    if (_formKey.currentState!.validate() && _rateLimitStart == null) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       setState(() {
         _errorMessage = '';
@@ -68,6 +97,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         setState(() {
           _errorMessage = authProvider.errorMessage;
         });
+        if (_errorMessage.contains('Terlalu banyak percobaan login')) {
+          _startRateLimitCountdown();
+        }
         if (!_errorMessage.contains('Username atau password salah')) {
           Flushbar(
             message: _errorMessage,
@@ -140,61 +172,73 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       child: FadeTransition(
                         opacity: _fadeAnimation,
-                        child: _LoginForm(
-                          formKey: _formKey,
-                          usernameController: _usernameController,
-                          passwordController: _passwordController,
-                          obscurePassword: _obscurePassword,
-                          onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
-                          isLoginError: isLoginError,
-                          errorMessage: _errorMessage,
-                          clearError: _clearError,
-                          loginButton: Consumer<AuthProvider>(
-                            builder: (context, auth, child) {
-                              return SizedBox(
-                                height: 48,
-                                child: ElevatedButton(
-                                  onPressed: auth.isLoginLoading ? null : _login,
-                                  style: ElevatedButton.styleFrom(
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    backgroundColor: theme.colorScheme.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                  child: auth.isLoginLoading
-                                      ? Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            const SizedBox(
-                                              width: 22,
-                                              height: 22,
-                                              child: CircularProgressIndicator(
-                                                color: Colors.white,
-                                                strokeWidth: 2,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            const Text(
-                                              'Memproses...',
+                        child: Column(
+                          children: [
+                            _LoginForm(
+                              formKey: _formKey,
+                              usernameController: _usernameController,
+                              passwordController: _passwordController,
+                              obscurePassword: _obscurePassword,
+                              onTogglePassword: () => setState(() => _obscurePassword = !_obscurePassword),
+                              isLoginError: isLoginError,
+                              errorMessage: _errorMessage,
+                              clearError: _clearError,
+                              loginButton: Consumer<AuthProvider>(
+                                builder: (context, auth, child) {
+                                  return SizedBox(
+                                    height: 48,
+                                    child: ElevatedButton(
+                                      onPressed: (auth.isLoginLoading || _rateLimitStart != null) ? null : _login,
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        backgroundColor: theme.colorScheme.primary,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: auth.isLoginLoading
+                                          ? Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                const SizedBox(
+                                                  width: 22,
+                                                  height: 22,
+                                                  child: CircularProgressIndicator(
+                                                    color: Colors.white,
+                                                    strokeWidth: 2,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 12),
+                                                const Text(
+                                                  'Memproses...',
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                              ],
+                                            )
+                                          : const Text(
+                                              'MASUK',
                                               style: TextStyle(
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                          ],
-                                        )
-                                      : const Text(
-                                          'MASUK',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                            if (_rateLimitStart != null)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 16.0),
+                                child: Text(
+                                  'Coba login lagi dalam ${_secondsLeft ~/ 60}:${(_secondsLeft % 60).toString().padLeft(2, '0')}',
+                                  style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                          ],
                         ),
                       ),
                     );
