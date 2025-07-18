@@ -343,6 +343,7 @@ class _LoginForm extends StatelessWidget {
             textInputAction: TextInputAction.next,
             keyboardType: TextInputType.text,
             autocorrect: false,
+            autofillHints: const [AutofillHints.username],
             validator: (value) {
               if (value == null || value.isEmpty) {
                 return 'Username tidak boleh kosong';
@@ -380,6 +381,7 @@ class _LoginForm extends StatelessWidget {
             ),
             textInputAction: TextInputAction.done,
             keyboardType: TextInputType.visiblePassword,
+            autofillHints: const [AutofillHints.password],
             onFieldSubmitted: (_) => FocusScope.of(context).unfocus(),
             validator: (value) {
               if (value == null || value.isEmpty) {
