@@ -210,9 +210,9 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
               'status': status,
             }),
           );
-          
+          print('PUT absensi: status= [32m [1m [4m [7m${updateResponse.statusCode} [0m, body=${updateResponse.body}');
           if (updateResponse.statusCode != 200) {
-            throw Exception("Gagal mengupdate absensi: ${updateResponse.statusCode}");
+            throw Exception("Gagal mengupdate absensi:  [31m${updateResponse.statusCode} [0m");
           }
         } else {
           // Buat absensi baru dengan tanggal yang dipilih
@@ -231,9 +231,9 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
               'jamMasuk': DateTime.now().toIso8601String(),
             }),
           );
-          
+          print('POST absensi: status= [32m [1m [4m [7m${createResponse.statusCode} [0m, body=${createResponse.body}');
           if (createResponse.statusCode != 201 && createResponse.statusCode != 200) {
-            throw Exception("Gagal membuat absensi: ${createResponse.statusCode}");
+            throw Exception("Gagal membuat absensi:  [31m${createResponse.statusCode} [0m");
           }
         }
         
@@ -783,8 +783,8 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                     child: _AbsenButton(
                                       label: 'Alpa',
                                       color: Colors.red,
-                                      selected: status == 'ALPA',
-                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'ALPA'),
+                                      selected: status == 'ALPHA',
+                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'ALPHA'),
                                     ),
                                   ),
                                 ],
@@ -865,7 +865,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         return Colors.orange;
       case 'SAKIT':
         return Colors.blue;
-      case 'ALPA':
+      case 'ALPHA':
         return Colors.red;
       default:
         return Colors.grey;
