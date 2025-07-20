@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../models/absensi_model.dart';
 import '../models/guru_model.dart';
 import '../services/api_service.dart';
+import 'dart:math' as math;
 
 class RekapAbsensiScreen extends StatefulWidget {
   const RekapAbsensiScreen({Key? key}) : super(key: key);
@@ -12,10 +13,13 @@ class RekapAbsensiScreen extends StatefulWidget {
   State<RekapAbsensiScreen> createState() => _RekapAbsensiScreenState();
 }
 
-class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
+class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   bool _isLoading = true;
   String _error = '';
+  
+  // Tab controller
+  late TabController _tabController;
   
   // Data rekap
   List<dynamic> _allAbsensiData = [];
@@ -24,10 +28,6 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   // Data filter
   DateTime _selectedDate = DateTime.now();
   String? _selectedGuruId;
-  String _searchQuery = '';
-  
-  // Controller untuk pencarian
-  final TextEditingController _searchController = TextEditingController();
   
   // Data statistik
   int _totalHadir = 0;
@@ -36,10 +36,23 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   int _totalAlpa = 0;
   int _totalGuru = 0;
   
+  // Data kehadiran per guru
+  Map<String, Map<String, int>> _kehadiranPerGuru = {};
+  
   @override
   void initState() {
     super.initState();
-    _loadData();
+    _tabController = TabController(length: 2, vsync: this);
+    // Pastikan data dimuat segera setelah widget dibuat
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
   
   Future<void> _loadData() async {
@@ -59,6 +72,12 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
         return;
       }
       
+      // Set data guru terlebih dahulu
+      setState(() {
+        _allGuruData = (guruResult['data'] as List).map((e) => Guru.fromJson(e)).toList();
+        _totalGuru = _allGuruData.length;
+      });
+      
       // Ambil data absensi
       final result = await _apiService.getAbsensiData();
       if (!result['success']) {
@@ -75,10 +94,11 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       // Hitung statistik
       _calculateStatistics(filteredAbsensi);
       
+      // Hitung kehadiran per guru
+      _hitungKehadiranPerGuru(filteredAbsensi);
+      
       setState(() {
-        _allGuruData = (guruResult['data'] as List).map((e) => Guru.fromJson(e)).toList();
         _allAbsensiData = filteredAbsensi;
-        _totalGuru = _allGuruData.length;
         _isLoading = false;
       });
     } catch (e) {
@@ -101,16 +121,12 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   
   // Filter absensi berdasarkan guru yang dipilih
   List<dynamic> get _filteredAbsensiData {
-    if (_selectedGuruId == null && _searchQuery.isEmpty) {
+    if (_selectedGuruId == null) {
       return _allAbsensiData;
     }
     
     return _allAbsensiData.where((absen) {
-      bool matchesGuru = _selectedGuruId == null || absen['guruId'].toString() == _selectedGuruId;
-      bool matchesSearch = _searchQuery.isEmpty || 
-                          absen['namaGuru'].toString().toLowerCase().contains(_searchQuery.toLowerCase());
-      
-      return matchesGuru && matchesSearch;
+      return absen['guruId'].toString() == _selectedGuruId;
     }).toList();
   }
   
@@ -135,6 +151,33 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       }
     }
   }
+
+  // Hitung kehadiran per guru
+  void _hitungKehadiranPerGuru(List<dynamic> data) {
+    _kehadiranPerGuru = {};
+    
+    // Inisialisasi data untuk semua guru
+    for (var guru in _allGuruData) {
+      _kehadiranPerGuru[guru.id] = {
+        'hadir': 0,
+        'izin': 0,
+        'sakit': 0,
+        'alpa': 0,
+        'total': 0,
+      };
+    }
+    
+    // Hitung kehadiran dari data absensi
+    for (var absen in data) {
+      final guruId = absen['guruId']?.toString();
+      final status = absen['status']?.toString().toLowerCase() ?? 'hadir';
+      
+      if (guruId != null && _kehadiranPerGuru.containsKey(guruId)) {
+        _kehadiranPerGuru[guruId]![status] = (_kehadiranPerGuru[guruId]![status] ?? 0) + 1;
+        _kehadiranPerGuru[guruId]!['total'] = (_kehadiranPerGuru[guruId]!['total'] ?? 0) + 1;
+      }
+    }
+  }
   
   // Dapatkan nama guru berdasarkan ID
   String _getGuruName(String? guruId) {
@@ -152,13 +195,11 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
   Future<void> _selectMonth() async {
     final DateTime initialDate = _selectedDate;
     
-    // Gunakan year picker terlebih dahulu
     final DateTime? picked = await showDialog<DateTime>(
       context: context,
       builder: (BuildContext context) {
         int selectedYear = initialDate.year;
         int selectedMonth = initialDate.month;
-        final currentYear = DateTime.now().year;
         
         return AlertDialog(
           title: const Text('Pilih Periode'),
@@ -267,214 +308,258 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
     }
   }
   
-  // Widget untuk tampilan statistik
-  Widget _buildStatisticsCard() {
+  // Widget untuk ringkasan statistik
+  Widget _buildRingkasanStatistik() {
+    final totalAbsensi = _totalHadir + _totalIzin + _totalSakit + _totalAlpa;
+    
+    // Hitung persentase kehadiran
+    final double persentaseKehadiran = totalAbsensi > 0 
+        ? (_totalHadir / totalAbsensi) * 100 
+        : 0;
+        
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.insert_chart,
-                  color: Theme.of(context).primaryColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Statistik Absensi',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    Icons.check_circle,
-                    Colors.green,
-                    'Hadir',
-                    _totalHadir.toString(),
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatCard(
-                    Icons.pending_actions,
-                    Colors.orange,
-                    'Izin',
-                    _totalIzin.toString(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatCard(
-                    Icons.medical_services,
-                    Colors.blue,
-                    'Sakit',
-                    _totalSakit.toString(),
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatCard(
-                    Icons.cancel,
-                    Colors.red,
-                    'Alpa',
-                    _totalAlpa.toString(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            if (_totalHadir + _totalIzin + _totalSakit + _totalAlpa > 0)
-              SizedBox(
-                height: 180,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 40,
-                    sections: [
-                      PieChartSectionData(
-                        color: Colors.green,
-                        value: _totalHadir.toDouble(),
-                        title: '${(_totalHadir / (_totalHadir + _totalIzin + _totalSakit + _totalAlpa) * 100).toStringAsFixed(1)}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      PieChartSectionData(
-                        color: Colors.orange,
-                        value: _totalIzin.toDouble(),
-                        title: '${(_totalIzin / (_totalHadir + _totalIzin + _totalSakit + _totalAlpa) * 100).toStringAsFixed(1)}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      PieChartSectionData(
-                        color: Colors.blue,
-                        value: _totalSakit.toDouble(),
-                        title: '${(_totalSakit / (_totalHadir + _totalIzin + _totalSakit + _totalAlpa) * 100).toStringAsFixed(1)}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      PieChartSectionData(
-                        color: Colors.red,
-                        value: _totalAlpa.toDouble(),
-                        title: '${(_totalAlpa / (_totalHadir + _totalIzin + _totalSakit + _totalAlpa) * 100).toStringAsFixed(1)}%',
-                        radius: 50,
-                        titleStyle: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildLegendItem(Colors.green, 'Hadir'),
-                const SizedBox(width: 16),
-                _buildLegendItem(Colors.orange, 'Izin'),
-                const SizedBox(width: 16),
-                _buildLegendItem(Colors.blue, 'Sakit'),
-                const SizedBox(width: 16),
-                _buildLegendItem(Colors.red, 'Alpa'),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildStatCard(IconData icon, Color color, String label, String value) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Icon(
-              icon,
-              color: color,
-              size: 28,
-            ),
-            const SizedBox(height: 8),
             Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[700],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
+              "Rekap Periode: ${DateFormat('MMMM yyyy').format(_selectedDate)}",
               style: const TextStyle(
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20),
+            
+            // Ringkasan Utama
+            Row(
+              children: [
+                // Persentase Kehadiran
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 120,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            SizedBox(
+                              width: 120,
+                              height: 120,
+                              child: CircularProgressIndicator(
+                                value: persentaseKehadiran / 100,
+                                strokeWidth: 10,
+                                backgroundColor: Colors.grey[300],
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  persentaseKehadiran > 80 
+                                      ? Colors.green 
+                                      : persentaseKehadiran > 60 
+                                          ? Colors.orange 
+                                          : Colors.red
+                                ),
+                              ),
+                            ),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "${persentaseKehadiran.toStringAsFixed(1)}%",
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const Text("Kehadiran")
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text("Total Guru: $_totalGuru"),
+                    ],
+                  ),
+                ),
+                
+                // Detail Status
+                Expanded(
+                  flex: 5,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatusBar("Hadir", _totalHadir, totalAbsensi, Colors.green),
+                      const SizedBox(height: 8),
+                      _buildStatusBar("Izin", _totalIzin, totalAbsensi, Colors.orange),
+                      const SizedBox(height: 8),
+                      _buildStatusBar("Sakit", _totalSakit, totalAbsensi, Colors.blue),
+                      const SizedBox(height: 8),
+                      _buildStatusBar("Alpa", _totalAlpa, totalAbsensi, Colors.red),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
   
-  Widget _buildLegendItem(Color color, String label) {
-    return Row(
+  Widget _buildStatusBar(String label, int value, int total, Color color) {
+    final double percentage = total > 0 ? (value / total) * 100 : 0;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
+        Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              "$label: $value",
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey[800],
+              ),
+            ),
+            const Spacer(),
+            Text(
+              "${percentage.toStringAsFixed(1)}%",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[700],
-          ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: percentage / 100,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation<Color>(color),
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(3),
         ),
       ],
     );
   }
   
+  // Widget untuk top kehadiran guru
+  Widget _buildTopKehadiranGuru() {
+    // Ambil 5 guru dengan kehadiran tertinggi
+    final sortedGuru = _kehadiranPerGuru.entries.toList()
+      ..sort((a, b) => (b.value['hadir'] ?? 0).compareTo(a.value['hadir'] ?? 0));
+    
+    final top5Guru = sortedGuru.take(5).toList();
+    
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Guru dengan Kehadiran Tertinggi",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            _isLoading 
+                ? const Center(child: CircularProgressIndicator())
+                : top5Guru.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 20),
+                          child: Text("Belum ada data kehadiran"),
+                        ),
+                      )
+                    : Column(
+                        children: top5Guru.map((entry) {
+                          final guru = _allGuruData.firstWhere(
+                            (g) => g.id == entry.key,
+                            orElse: () => Guru(id: '', nama: 'Unknown'),
+                          );
+                          
+                          final hadirCount = entry.value['hadir'] ?? 0;
+                          final totalCount = entry.value['total'] ?? 0;
+                          final percentage = totalCount > 0 ? (hadirCount / totalCount) * 100 : 0;
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  backgroundColor: Colors.green.withOpacity(0.2),
+                                  child: Text(
+                                    guru.nama.isNotEmpty ? guru.nama[0] : "?",
+                                    style: const TextStyle(color: Colors.green),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        guru.nama,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: LinearProgressIndicator(
+                                              value: percentage / 100,
+                                              backgroundColor: Colors.grey[200],
+                                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.green),
+                                              minHeight: 6,
+                                              borderRadius: BorderRadius.circular(3),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            "$hadirCount/$totalCount (${percentage.toStringAsFixed(0)}%)",
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // Widget untuk daftar absensi
   Widget _buildAbsensiList() {
     if (_filteredAbsensiData.isEmpty) {
@@ -500,110 +585,186 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
       );
     }
     
+    // Kelompokkan absensi berdasarkan tanggal
+    Map<String, List<dynamic>> groupedAbsensi = {};
+    for (var absensi in _filteredAbsensiData) {
+      final tanggal = absensi['tanggal'] ?? '';
+      if (!groupedAbsensi.containsKey(tanggal)) {
+        groupedAbsensi[tanggal] = [];
+      }
+      groupedAbsensi[tanggal]!.add(absensi);
+    }
+    
+    // Urutkan tanggal dari terbaru
+    final sortedDates = groupedAbsensi.keys.toList()
+      ..sort((a, b) => b.compareTo(a));
+    
     return ListView.builder(
-      itemCount: _filteredAbsensiData.length,
+      itemCount: sortedDates.length,
       padding: const EdgeInsets.all(8),
       itemBuilder: (context, index) {
-        final absensi = _filteredAbsensiData[index];
-        final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
-        final tanggal = absensi['tanggal'] != null
-            ? DateFormat('dd MMMM yyyy').format(DateTime.parse(absensi['tanggal']))
-            : 'Tanggal tidak diketahui';
-            
-        Color statusColor;
-        IconData statusIcon;
-        
-        switch (status) {
-          case 'hadir':
-            statusColor = Colors.green;
-            statusIcon = Icons.check_circle;
-            break;
-          case 'izin':
-            statusColor = Colors.orange;
-            statusIcon = Icons.pending_actions;
-            break;
-          case 'sakit':
-            statusColor = Colors.blue;
-            statusIcon = Icons.medical_services;
-            break;
-          case 'alpa':
-            statusColor = Colors.red;
-            statusIcon = Icons.cancel;
-            break;
-          default:
-            statusColor = Colors.grey;
-            statusIcon = Icons.help;
-        }
+        final tanggal = sortedDates[index];
+        final absensiList = groupedAbsensi[tanggal]!;
+        final formattedDate = DateFormat('EEEE, dd MMMM yyyy', 'id_ID')
+          .format(DateTime.parse(tanggal));
         
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
-          elevation: 2,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            leading: CircleAvatar(
-              backgroundColor: statusColor.withOpacity(0.2),
-              foregroundColor: statusColor,
-              radius: 20,
-              child: Icon(statusIcon),
-            ),
-            title: Text(
-              _getGuruName(absensi['guruId']?.toString()),
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 4),
-                Text(tanggal),
-                const SizedBox(height: 2),
-                Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header tanggal
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(12),
+                    topRight: Radius.circular(12),
+                  ),
+                ),
+                child: Row(
                   children: [
-                    const Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 4),
+                    const Icon(Icons.calendar_today, size: 16),
+                    const SizedBox(width: 8),
                     Text(
-                      'Masuk: ${absensi['jamMasuk'] ?? '-'}',
-                      style: const TextStyle(fontSize: 12),
+                      formattedDate,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    const Icon(
-                      Icons.logout,
-                      size: 14,
-                      color: Colors.grey,
-                    ),
-                    const SizedBox(width: 4),
+                    const Spacer(),
                     Text(
-                      'Keluar: ${absensi['jamKeluar'] ?? '-'}',
-                      style: const TextStyle(fontSize: 12),
+                      "${absensiList.length} guru",
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[700],
+                      ),
                     ),
                   ],
                 ),
-              ],
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: Text(
-                status.toUpperCase(),
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 12,
-                ),
+              
+              // Daftar absensi pada tanggal tersebut
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: absensiList.length,
+                itemBuilder: (context, idx) {
+                  final absensi = absensiList[idx];
+                  final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
+                  
+                  Color statusColor;
+                  IconData statusIcon;
+                  
+                  switch (status) {
+                    case 'hadir':
+                      statusColor = Colors.green;
+                      statusIcon = Icons.check_circle;
+                      break;
+                    case 'izin':
+                      statusColor = Colors.orange;
+                      statusIcon = Icons.pending_actions;
+                      break;
+                    case 'sakit':
+                      statusColor = Colors.blue;
+                      statusIcon = Icons.medical_services;
+                      break;
+                    case 'alpa':
+                      statusColor = Colors.red;
+                      statusIcon = Icons.cancel;
+                      break;
+                    default:
+                      statusColor = Colors.grey;
+                      statusIcon = Icons.help;
+                  }
+                  
+                  return InkWell(
+                    onTap: () => _showAbsensiDetail(absensi),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: statusColor.withOpacity(0.2),
+                            foregroundColor: statusColor,
+                            radius: 18,
+                            child: Icon(statusIcon, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _getGuruName(absensi['guruId']?.toString()),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.access_time,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Masuk: ${absensi['jamMasuk'] ?? '-'}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Icon(
+                                      Icons.logout,
+                                      size: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'Keluar: ${absensi['jamKeluar'] ?? '-'}',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: statusColor.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              status.toUpperCase(),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
-            ),
-            onTap: () => _showAbsensiDetail(absensi),
+            ],
           ),
         );
       },
@@ -618,25 +779,57 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
         : 'Tanggal tidak diketahui';
     final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
     
+    Color statusColor;
+    IconData statusIcon;
+    
+    switch (status) {
+      case 'hadir':
+        statusColor = Colors.green;
+        statusIcon = Icons.check_circle;
+        break;
+      case 'izin':
+        statusColor = Colors.orange;
+        statusIcon = Icons.pending_actions;
+        break;
+      case 'sakit':
+        statusColor = Colors.blue;
+        statusIcon = Icons.medical_services;
+        break;
+      case 'alpa':
+        statusColor = Colors.red;
+        statusIcon = Icons.cancel;
+        break;
+      default:
+        statusColor = Colors.grey;
+        statusIcon = Icons.help;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Detail Absensi - $guruName'),
+        title: Row(
+          children: [
+            Icon(statusIcon, color: statusColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Detail Absensi',
+                style: TextStyle(color: statusColor),
+              ),
+            ),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Tanggal: $tanggal'),
-            const SizedBox(height: 8),
-            Text('Status: ${status.toUpperCase()}'),
-            const SizedBox(height: 8),
-            Text('Jam Masuk: ${absensi['jamMasuk'] ?? '-'}'),
-            const SizedBox(height: 8),
-            Text('Jam Keluar: ${absensi['jamKeluar'] ?? '-'}'),
-            if (absensi['keterangan'] != null && absensi['keterangan'].toString().isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text('Keterangan: ${absensi['keterangan']}'),
-            ],
+            _buildDetailRow('Nama Guru', guruName),
+            _buildDetailRow('Tanggal', tanggal),
+            _buildDetailRow('Status', status.toUpperCase()),
+            _buildDetailRow('Jam Masuk', absensi['jamMasuk'] ?? '-'),
+            _buildDetailRow('Jam Keluar', absensi['jamKeluar'] ?? '-'),
+            if (absensi['keterangan'] != null && absensi['keterangan'].toString().isNotEmpty)
+              _buildDetailRow('Keterangan', absensi['keterangan']),
           ],
         ),
         actions: [
@@ -646,6 +839,134 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Tampilkan dialog filter
+  void _showFilterDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.filter_list),
+                      SizedBox(width: 8),
+                      Text(
+                        'Filter Data',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String?>(
+                    decoration: InputDecoration(
+                      labelText: 'Guru',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      prefixIcon: const Icon(Icons.person),
+                    ),
+                    value: _selectedGuruId,
+                    hint: const Text('Semua Guru'),
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedGuruId = value;
+                      });
+                    },
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Semua Guru'),
+                      ),
+                      ..._allGuruData.map((guru) {
+                        return DropdownMenuItem<String>(
+                          value: guru.id,
+                          child: Text(guru.nama),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _selectedGuruId = null;
+                            });
+                            Navigator.pop(context);
+                            this.setState(() {});
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black,
+                          ),
+                          child: const Text('Reset'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            this.setState(() {});
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            foregroundColor: Colors.white,
+                          ),
+                          child: const Text('Terapkan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -658,12 +979,17 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
           IconButton(
             icon: const Icon(Icons.calendar_month),
             onPressed: _selectMonth,
-            tooltip: 'Pilih Bulan',
+            tooltip: 'Pilih Periode',
+          ),
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterDialog,
+            tooltip: 'Filter',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
-            tooltip: 'Refresh Data',
+            tooltip: 'Refresh',
           ),
         ],
       ),
@@ -689,269 +1015,89 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> {
                 )
               : Column(
                   children: [
-                    // Bulan yang dipilih
+                    // Header dengan periode yang dipilih
                     Container(
                       color: Theme.of(context).primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            color: Colors.white,
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.calendar_today,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                DateFormat('MMMM yyyy').format(_selectedDate),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Periode: ${DateFormat('MMMM yyyy').format(_selectedDate)}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Total Guru: $_totalGuru',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
+                            child: Text(
+                              "${_filteredAbsensiData.length} absensi",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     
-                    // Konten dengan scroll
+                    // Tab bar
+                    TabBar(
+                      controller: _tabController,
+                      tabs: const [
+                        Tab(text: 'Statistik'),
+                        Tab(text: 'Daftar Absensi'),
+                      ],
+                      labelColor: Theme.of(context).primaryColor,
+                      unselectedLabelColor: Colors.grey,
+                      indicatorColor: Theme.of(context).primaryColor,
+                      indicatorWeight: 3,
+                    ),
+                    
+                    // Tab content
                     Expanded(
-                      child: SingleChildScrollView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        child: Column(
-                          children: [
-                            // Filter dan pencarian
-                            Container(
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          // Tab Statistik
+                          RefreshIndicator(
+                            onRefresh: _loadData,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(16),
                               child: Column(
                                 children: [
-                                  // Filter guru
-                                  DropdownButtonFormField<String?>(
-                                    decoration: InputDecoration(
-                                      labelText: 'Filter Guru',
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      prefixIcon: const Icon(Icons.person),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                                    ),
-                                    value: _selectedGuruId,
-                                    hint: const Text('Semua Guru'),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _selectedGuruId = value;
-                                      });
-                                    },
-                                    items: [
-                                      const DropdownMenuItem<String?>(
-                                        value: null,
-                                        child: Text('Semua Guru'),
-                                      ),
-                                      ..._allGuruData.map((guru) {
-                                        return DropdownMenuItem<String>(
-                                          value: guru.id,
-                                          child: Text(guru.nama),
-                                        );
-                                      }).toList(),
-                                    ],
-                                  ),
-                                  
-                                  const SizedBox(height: 12),
-                                  
-                                  // Pencarian
-                                  TextField(
-                                    controller: _searchController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Cari Guru',
-                                      hintText: 'Masukkan nama guru',
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      prefixIcon: const Icon(Icons.search),
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-                                      suffixIcon: _searchQuery.isNotEmpty
-                                          ? IconButton(
-                                              icon: const Icon(Icons.clear),
-                                              onPressed: () {
-                                                _searchController.clear();
-                                                setState(() {
-                                                  _searchQuery = '';
-                                                });
-                                              },
-                                            )
-                                          : null,
-                                    ),
-                                    onChanged: (value) {
-                                      setState(() {
-                                        _searchQuery = value;
-                                      });
-                                    },
-                                  ),
+                                  _buildRingkasanStatistik(),
+                                  const SizedBox(height: 16),
+                                  _buildTopKehadiranGuru(),
                                 ],
                               ),
                             ),
-                            
-                            // Statistik
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: _buildStatisticsCard(),
-                            ),
-                            
-                            const SizedBox(height: 16),
-                            
-                            // Label untuk daftar absensi
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.list_alt,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Daftar Absensi',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(context).primaryColor,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    '${_filteredAbsensiData.length} data',
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            
-                            const SizedBox(height: 8),
-                            
-                            // Daftar absensi
-                            ListView.builder(
-                              itemCount: _filteredAbsensiData.length,
-                              padding: const EdgeInsets.all(8),
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemBuilder: (context, index) {
-                                final absensi = _filteredAbsensiData[index];
-                                final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
-                                final tanggal = absensi['tanggal'] != null
-                                    ? DateFormat('dd MMMM yyyy').format(DateTime.parse(absensi['tanggal']))
-                                    : 'Tanggal tidak diketahui';
-                                    
-                                Color statusColor;
-                                IconData statusIcon;
-                                
-                                switch (status) {
-                                  case 'hadir':
-                                    statusColor = Colors.green;
-                                    statusIcon = Icons.check_circle;
-                                    break;
-                                  case 'izin':
-                                    statusColor = Colors.orange;
-                                    statusIcon = Icons.pending_actions;
-                                    break;
-                                  case 'sakit':
-                                    statusColor = Colors.blue;
-                                    statusIcon = Icons.medical_services;
-                                    break;
-                                  case 'alpa':
-                                    statusColor = Colors.red;
-                                    statusIcon = Icons.cancel;
-                                    break;
-                                  default:
-                                    statusColor = Colors.grey;
-                                    statusIcon = Icons.help;
-                                }
-                                
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  elevation: 2,
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                    leading: CircleAvatar(
-                                      backgroundColor: statusColor.withOpacity(0.2),
-                                      foregroundColor: statusColor,
-                                      radius: 20,
-                                      child: Icon(statusIcon),
-                                    ),
-                                    title: Text(
-                                      _getGuruName(absensi['guruId']?.toString()),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(height: 4),
-                                        Text(tanggal),
-                                        const SizedBox(height: 2),
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.access_time,
-                                              size: 14,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Masuk: ${absensi['jamMasuk'] ?? '-'}',
-                                              style: const TextStyle(fontSize: 12),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            const Icon(
-                                              Icons.logout,
-                                              size: 14,
-                                              color: Colors.grey,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Keluar: ${absensi['jamKeluar'] ?? '-'}',
-                                              style: const TextStyle(fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    trailing: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: statusColor.withOpacity(0.2),
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        status.toUpperCase(),
-                                        style: TextStyle(
-                                          color: statusColor,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                    onTap: () => _showAbsensiDetail(absensi),
-                                  ),
-                                );
-                              },
-                            ),
-                            // Tambahkan padding di bagian bawah untuk memastikan konten terakhir terlihat
-                            const SizedBox(height: 16),
-                          ],
-                        ),
+                          ),
+                          
+                          // Tab Daftar Absensi
+                          RefreshIndicator(
+                            onRefresh: _loadData,
+                            child: _buildAbsensiList(),
+                          ),
+                        ],
                       ),
                     ),
                   ],
