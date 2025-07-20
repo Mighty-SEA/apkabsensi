@@ -164,10 +164,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _checkApiStatus() async {
+    if (!mounted) return;
     setState(() {
       _loadingServer = true;
     });
     final result = await ApiService().checkApiStatus();
+    if (!mounted) return;
     setState(() {
       _loadingServer = false;
       if (result['success'] == true) {
