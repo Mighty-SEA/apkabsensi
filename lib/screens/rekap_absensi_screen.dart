@@ -970,11 +970,19 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
     );
   }
 
+  // Tambahkan fungsi export sederhana
+  void _exportData() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Fitur export belum diimplementasikan.')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Rekap Absensi'),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.calendar_month),
@@ -982,9 +990,9 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             tooltip: 'Pilih Periode',
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterDialog,
-            tooltip: 'Filter',
+            icon: const Icon(Icons.download),
+            onPressed: _exportData,
+            tooltip: 'Export',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),

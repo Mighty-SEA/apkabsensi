@@ -803,6 +803,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     return Scaffold(
       appBar: AppBar(
         title: const Text('Absensi Guru'),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

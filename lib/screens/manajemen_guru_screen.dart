@@ -624,7 +624,7 @@ class _ManajemenGuruScreenState extends State<ManajemenGuruScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Guru'),
-        elevation: 0,
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

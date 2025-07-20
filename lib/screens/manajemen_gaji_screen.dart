@@ -678,6 +678,7 @@ class _ManajemenGajiScreenState extends State<ManajemenGajiScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Manajemen Gaji Guru'),
+        centerTitle: false,
         actions: [
           IconButton(
             icon: const Icon(Icons.date_range),
