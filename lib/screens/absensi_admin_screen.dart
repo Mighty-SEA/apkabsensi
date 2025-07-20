@@ -168,7 +168,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
 
-  Future<void> _absenGuru(String guruId, String status, {bool showNotif = true}) async {
+  Future<void> _absenGuru(String guruId, String status, {bool showNotif = true, DateTime? customTime}) async {
     setState(() {
       _isSubmitting = true;
     });
@@ -200,23 +200,38 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           final absensiId = absensiList[0]['id'];
           final updateUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}/$absensiId";
           
+          // Buat body request sesuai dengan parameter yang diberikan
+          final Map<String, dynamic> updateBody = {'status': status};
+          
+          // Jika ada custom time, tambahkan ke body request untuk update jam masuk
+          if (customTime != null) {
+            updateBody['jamMasuk'] = customTime.toIso8601String();
+          }
+          
           final updateResponse = await http.put(
             Uri.parse(updateUrl),
             headers: {
               'Authorization': 'Bearer $token',
               'Content-Type': 'application/json',
             },
-            body: jsonEncode({
-              'status': status,
-            }),
+            body: jsonEncode(updateBody),
           );
+          
           print('PUT absensi: status= [32m [1m [4m [7m${updateResponse.statusCode} [0m, body=${updateResponse.body}');
           if (updateResponse.statusCode != 200) {
             throw Exception("Gagal mengupdate absensi:  [31m${updateResponse.statusCode} [0m");
           }
+          
+          // Jika berhasil update dengan custom time, update status jam masuk di state
+          if (customTime != null) {
+            // Update state untuk jam masuk jika diperlukan
+            // Idealnya backend mengembalikan data yang sudah diupdate
+          }
         } else {
           // Buat absensi baru dengan tanggal yang dipilih
           final createUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}";
+          
+          final jamMasuk = customTime?.toIso8601String() ?? DateTime.now().toIso8601String();
           
           final createResponse = await http.post(
             Uri.parse(createUrl),
@@ -228,7 +243,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
               'guruId': int.parse(guruId),
               'status': status,
               'tanggal': "${_apiFormattedDate}T00:00:00.000Z",
-              'jamMasuk': DateTime.now().toIso8601String(),
+              'jamMasuk': jamMasuk,
             }),
           );
           print('POST absensi: status= [32m [1m [4m [7m${createResponse.statusCode} [0m, body=${createResponse.body}');
@@ -242,9 +257,21 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           (g) => g.id == guruId,
           orElse: () => Guru(id: guruId, nama: '', jenisKelamin: null, alamat: null, noTelp: null),
         ).nama;
+        
+        // Perbarui UI dengan data terbaru
+        await _fetchAbsensiByDate();
+        
         if (showNotif) {
+          String message;
+          if (customTime != null) {
+            final timeStr = DateFormat('HH:mm').format(customTime);
+            message = 'Absen $status berhasil untuk guru${guruNama.isNotEmpty ? ' $guruNama' : ' dengan ID $guruId'} pada jam $timeStr';
+          } else {
+            message = 'Absen $status berhasil untuk guru${guruNama.isNotEmpty ? ' $guruNama' : ' dengan ID $guruId'}';
+          }
+          
           Flushbar(
-            message: 'Absen $status berhasil untuk guru${guruNama.isNotEmpty ? ' $guruNama' : ' dengan ID $guruId'}',
+            message: message,
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
             flushbarPosition: FlushbarPosition.TOP,
@@ -284,16 +311,28 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
 
-  Future<void> _absenSemua(String status) async {
+  Future<void> _absenSemua(String status, {DateTime? customTime}) async {
     setState(() {
       _isSubmitting = true;
     });
     try {
       for (final guru in _guruList) {
-        await _absenGuru(guru.id, status, showNotif: false);
+        await _absenGuru(guru.id, status, showNotif: false, customTime: customTime);
       }
+      
+      // Perbarui UI dengan data terbaru
+      await _fetchAbsensiByDate();
+      
+      String message;
+      if (customTime != null) {
+        final timeStr = DateFormat('HH:mm').format(customTime);
+        message = 'Semua guru telah diubah status menjadi $status pada jam $timeStr';
+      } else {
+        message = 'Semua guru telah diubah status menjadi $status';
+      }
+      
       Flushbar(
-        message: 'Semua guru telah diubah status menjadi $status',
+        message: message,
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 3),
         flushbarPosition: FlushbarPosition.TOP,
@@ -357,7 +396,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
   
-  Future<void> _absenPulangGuru(String guruId, {bool showNotif = true}) async {
+  Future<void> _absenPulangGuru(String guruId, {bool showNotif = true, DateTime? customTime}) async {
     setState(() {
       _isSubmitting = true;
     });
@@ -380,6 +419,9 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         if (absensiList.isNotEmpty) {
           final absensiId = absensiList[0]['id'];
           final updateUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}/$absensiId";
+          
+          final jamKeluar = customTime?.toIso8601String() ?? DateTime.now().toIso8601String();
+          
           final updateResponse = await http.put(
             Uri.parse(updateUrl),
             headers: {
@@ -387,15 +429,27 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
               'Content-Type': 'application/json',
             },
             body: jsonEncode({
-              'jamKeluar': DateTime.now().toIso8601String(),
+              'jamKeluar': jamKeluar,
             }),
           );
           if (updateResponse.statusCode != 200) {
             throw Exception("Gagal update jam pulang: ${updateResponse.statusCode}");
           }
+          
+          // Perbarui UI dengan data terbaru
+          await _fetchAbsensiByDate();
+          
           if (showNotif) {
+            String message;
+            if (customTime != null) {
+              final timeStr = DateFormat('HH:mm').format(customTime);
+              message = 'Absen pulang berhasil pada jam $timeStr';
+            } else {
+              message = 'Absen pulang berhasil';
+            }
+            
             Flushbar(
-              message: 'Absen pulang berhasil',
+              message: message,
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 3),
               flushbarPosition: FlushbarPosition.TOP,
@@ -410,7 +464,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           }
           setState(() {
             // Status tetap, hanya update jam pulang
-            _jamPulang[guruId] = DateTime.now().toIso8601String();
+            _jamPulang[guruId] = jamKeluar;
           });
         } else {
           throw Exception("Belum ada absensi masuk untuk guru ini");
@@ -439,16 +493,28 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
 
-  Future<void> _absenPulangSemua() async {
+  Future<void> _absenPulangSemua({DateTime? customTime}) async {
     setState(() {
       _isSubmitting = true;
     });
     try {
       for (final guru in _guruList) {
-        await _absenPulangGuru(guru.id, showNotif: false);
+        await _absenPulangGuru(guru.id, showNotif: false, customTime: customTime);
       }
+      
+      // Perbarui UI dengan data terbaru
+      await _fetchAbsensiByDate();
+      
+      String message;
+      if (customTime != null) {
+        final timeStr = DateFormat('HH:mm').format(customTime);
+        message = 'Semua guru telah absen pulang pada jam $timeStr';
+      } else {
+        message = 'Semua guru telah absen pulang';
+      }
+      
       Flushbar(
-        message: 'Semua guru telah absen pulang',
+        message: message,
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 3),
         flushbarPosition: FlushbarPosition.TOP,
@@ -478,6 +544,123 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
       setState(() {
         _isSubmitting = false;
       });
+    }
+  }
+
+  // Fungsi untuk menampilkan dialog pemilihan waktu
+  Future<DateTime?> _showTimePickerDialog(BuildContext context, {String title = 'Pilih Jam'}) async {
+    // Tampilkan dialog konfirmasi terlebih dahulu
+    bool? shouldShowTimePicker = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(title),
+          content: const Text('Anda akan mengubah waktu pencatatan absensi. Lanjutkan?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('BATAL'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('LANJUTKAN'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldShowTimePicker != true) {
+      return null;
+    }
+
+    final TimeOfDay? timeOfDay = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).colorScheme.primary,
+            ),
+            timePickerTheme: TimePickerThemeData(
+              dialTextColor: Theme.of(context).colorScheme.onSurface,
+              hourMinuteTextColor: Theme.of(context).colorScheme.primary,
+              dayPeriodTextColor: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              alwaysUse24HourFormat: false,
+            ),
+            child: child!,
+          ),
+        );
+      },
+      helpText: title,
+      cancelText: 'BATAL',
+      confirmText: 'SIMPAN',
+    );
+    
+    if (timeOfDay != null) {
+      // Gabungkan tanggal yang dipilih dengan jam yang dipilih
+      return DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        _selectedDate.day,
+        timeOfDay.hour,
+        timeOfDay.minute,
+      );
+    }
+    
+    return null;
+  }
+  
+  // Fungsi untuk menangani long press pada tombol hadir
+  Future<void> _handleHadirLongPress(String guruId) async {
+    final customTime = await _showTimePickerDialog(
+      context,
+      title: 'Pilih Jam Masuk',
+    );
+    
+    if (customTime != null && mounted) {
+      await _absenGuru(guruId, 'HADIR', customTime: customTime);
+    }
+  }
+  
+  // Fungsi untuk menangani long press pada tombol hadir semua
+  Future<void> _handleHadirSemuaLongPress() async {
+    final customTime = await _showTimePickerDialog(
+      context,
+      title: 'Pilih Jam Masuk untuk Semua',
+    );
+    
+    if (customTime != null && mounted) {
+      await _absenSemua('HADIR', customTime: customTime);
+    }
+  }
+  
+  // Fungsi untuk menangani long press pada tombol pulang
+  Future<void> _handlePulangLongPress(String guruId) async {
+    final customTime = await _showTimePickerDialog(
+      context,
+      title: 'Pilih Jam Pulang',
+    );
+    
+    if (customTime != null && mounted) {
+      await _absenPulangGuru(guruId, customTime: customTime);
+    }
+  }
+  
+  // Fungsi untuk menangani long press pada tombol pulang semua
+  Future<void> _handlePulangSemuaLongPress() async {
+    final customTime = await _showTimePickerDialog(
+      context,
+      title: 'Pilih Jam Pulang untuk Semua',
+    );
+    
+    if (customTime != null && mounted) {
+      await _absenPulangSemua(customTime: customTime);
     }
   }
 
@@ -585,27 +768,33 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                 child: Row(
                   children: [
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting ? null : () => _absenSemua('HADIR'),
-                        icon: const Icon(Icons.check_circle, size: 20),
-                        label: const Text('Hadir Semua'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: GestureDetector(
+                        onLongPress: _isSubmitting ? null : _handleHadirSemuaLongPress,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : () => _absenSemua('HADIR'),
+                          icon: const Icon(Icons.check_circle, size: 20),
+                          label: const Text('Hadir Semua'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _isSubmitting ? null : _absenPulangSemua,
-                        icon: const Icon(Icons.logout, size: 20),
-                        label: const Text('Pulang Semua'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: GestureDetector(
+                        onLongPress: _isSubmitting ? null : _handlePulangSemuaLongPress,
+                        child: ElevatedButton.icon(
+                          onPressed: _isSubmitting ? null : _absenPulangSemua,
+                          icon: const Icon(Icons.logout, size: 20),
+                          label: const Text('Pulang Semua'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
                         ),
                       ),
                     ),
@@ -677,11 +866,14 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                               ),
                                             ),
                                             // Tombol Pulang di ujung kanan sejajar nama
-                                            _AbsenButton(
-                                              label: 'Pulang',
-                                              color: Colors.blue,
-                                              selected: _jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty,
-                                              onTap: _isSubmitting ? null : () => _absenPulangGuru(guru.id),
+                                            GestureDetector(
+                                              onLongPress: _isSubmitting ? null : () => _handlePulangLongPress(guru.id),
+                                              child: _AbsenButton(
+                                                label: 'Pulang',
+                                                color: Colors.blue,
+                                                selected: _jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty,
+                                                onTap: _isSubmitting ? null : () => _absenPulangGuru(guru.id),
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -756,11 +948,14 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                               Row(
                                 children: [
                                   Expanded(
-                                    child: _AbsenButton(
-                                      label: 'Hadir',
-                                      color: Colors.green,
-                                      selected: status == 'HADIR',
-                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'HADIR'),
+                                    child: GestureDetector(
+                                      onLongPress: _isSubmitting ? null : () => _handleHadirLongPress(guru.id),
+                                      child: _AbsenButton(
+                                        label: 'Hadir',
+                                        color: Colors.green,
+                                        selected: status == 'HADIR',
+                                        onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'HADIR'),
+                                      ),
                                     ),
                                   ),
                                   Expanded(
