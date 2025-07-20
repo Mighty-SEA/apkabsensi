@@ -180,6 +180,11 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         throw Exception("Token tidak tersedia");
       }
       
+      // Update UI terlebih dahulu untuk pengalaman yang lebih responsif (optimistic update)
+      setState(() {
+        _absenStatus[guruId] = status;
+      });
+      
       // Cek apakah sudah ada absensi pada tanggal yang dipilih
       final url = "${ApiService.baseUrl}${ApiService.absensiEndpoint}?tanggal=${_apiFormattedDate}&guruId=$guruId";
       
@@ -221,12 +226,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           if (updateResponse.statusCode != 200) {
             throw Exception("Gagal mengupdate absensi:  [31m${updateResponse.statusCode} [0m");
           }
-          
-          // Jika berhasil update dengan custom time, update status jam masuk di state
-          if (customTime != null) {
-            // Update state untuk jam masuk jika diperlukan
-            // Idealnya backend mengembalikan data yang sudah diupdate
-          }
         } else {
           // Buat absensi baru dengan tanggal yang dipilih
           final createUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}";
@@ -258,9 +257,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           orElse: () => Guru(id: guruId, nama: '', jenisKelamin: null, alamat: null, noTelp: null),
         ).nama;
         
-        // Perbarui UI dengan data terbaru
-        await _fetchAbsensiByDate();
-        
         if (showNotif) {
           String message;
           if (customTime != null) {
@@ -284,13 +280,15 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
             reverseAnimationCurve: Curves.easeInBack,
           )..show(context);
         }
-        setState(() {
-          _absenStatus[guruId] = status;
-        });
       } else {
         throw Exception("Gagal memeriksa absensi: ${checkResponse.statusCode}");
       }
     } catch (e) {
+      // Rollback optimistic update jika terjadi error
+      setState(() {
+        _absenStatus.remove(guruId);
+      });
+      
       Flushbar(
         message: 'Terjadi kesalahan: $e',
         backgroundColor: Colors.red,
@@ -316,12 +314,25 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
       _isSubmitting = true;
     });
     try {
+      // Optimistic update untuk UI responsif
+      Map<String, String?> backupStatus = Map.from(_absenStatus);
+      
+      // Update status semua guru pada UI
       for (final guru in _guruList) {
-        await _absenGuru(guru.id, status, showNotif: false, customTime: customTime);
+        setState(() {
+          _absenStatus[guru.id] = status;
+        });
       }
       
-      // Perbarui UI dengan data terbaru
-      await _fetchAbsensiByDate();
+      // Lakukan request ke server
+      for (final guru in _guruList) {
+        try {
+          await _absenGuru(guru.id, status, showNotif: false, customTime: customTime);
+        } catch (e) {
+          print('Error saat melakukan absen untuk guru ${guru.id}: $e');
+          // Jangan menampilkan notifikasi error per guru, hanya log saja
+        }
+      }
       
       String message;
       if (customTime != null) {
@@ -345,6 +356,80 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         reverseAnimationCurve: Curves.easeInBack,
       )..show(context);
     } catch (e) {
+      // Pada kasus error global, tetap update data terbaru dari server
+      await _fetchAbsensiByDate();
+      
+      Flushbar(
+        message: 'Terjadi kesalahan: $e',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
+    } finally {
+      setState(() {
+        _isSubmitting = false;
+      });
+    }
+  }
+
+  Future<void> _absenPulangSemua({DateTime? customTime}) async {
+    setState(() {
+      _isSubmitting = true;
+    });
+    try {
+      // Optimistic update untuk UI responsif
+      Map<String, String?> backupPulang = Map.from(_jamPulang);
+      final jamKeluar = customTime?.toIso8601String() ?? DateTime.now().toIso8601String();
+      
+      // Update jam pulang semua guru pada UI
+      for (final guru in _guruList) {
+        setState(() {
+          _jamPulang[guru.id] = jamKeluar;
+        });
+      }
+      
+      // Lakukan request ke server
+      for (final guru in _guruList) {
+        try {
+          await _absenPulangGuru(guru.id, showNotif: false, customTime: customTime);
+        } catch (e) {
+          print('Error saat melakukan absen pulang untuk guru ${guru.id}: $e');
+          // Jangan menampilkan notifikasi error per guru, hanya log saja
+        }
+      }
+      
+      String message;
+      if (customTime != null) {
+        final timeStr = DateFormat('HH:mm').format(customTime);
+        message = 'Semua guru telah absen pulang pada jam $timeStr';
+      } else {
+        message = 'Semua guru telah absen pulang';
+      }
+      
+      Flushbar(
+        message: message,
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+        forwardAnimationCurve: Curves.easeOutBack,
+        reverseAnimationCurve: Curves.easeInBack,
+      )..show(context);
+    } catch (e) {
+      // Pada kasus error global, tetap update data terbaru dari server
+      await _fetchAbsensiByDate();
+      
       Flushbar(
         message: 'Terjadi kesalahan: $e',
         backgroundColor: Colors.red,
@@ -405,6 +490,13 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
       if (token == null) {
         throw Exception("Token tidak tersedia");
       }
+      
+      // Update UI terlebih dahulu untuk pengalaman yang lebih responsif (optimistic update)
+      final jamKeluar = customTime?.toIso8601String() ?? DateTime.now().toIso8601String();
+      setState(() {
+        _jamPulang[guruId] = jamKeluar;
+      });
+      
       final url = "${ApiService.baseUrl}${ApiService.absensiEndpoint}?tanggal=${_apiFormattedDate}&guruId=$guruId";
       final checkResponse = await http.get(
         Uri.parse(url),
@@ -420,8 +512,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           final absensiId = absensiList[0]['id'];
           final updateUrl = "${ApiService.baseUrl}${ApiService.absensiEndpoint}/$absensiId";
           
-          final jamKeluar = customTime?.toIso8601String() ?? DateTime.now().toIso8601String();
-          
           final updateResponse = await http.put(
             Uri.parse(updateUrl),
             headers: {
@@ -435,9 +525,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
           if (updateResponse.statusCode != 200) {
             throw Exception("Gagal update jam pulang: ${updateResponse.statusCode}");
           }
-          
-          // Perbarui UI dengan data terbaru
-          await _fetchAbsensiByDate();
           
           if (showNotif) {
             String message;
@@ -462,10 +549,6 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
               reverseAnimationCurve: Curves.easeInBack,
             )..show(context);
           }
-          setState(() {
-            // Status tetap, hanya update jam pulang
-            _jamPulang[guruId] = jamKeluar;
-          });
         } else {
           throw Exception("Belum ada absensi masuk untuk guru ini");
         }
@@ -473,60 +556,11 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         throw Exception("Gagal memeriksa absensi: ${checkResponse.statusCode}");
       }
     } catch (e) {
-      Flushbar(
-        message: 'Terjadi kesalahan: $e',
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-        flushbarPosition: FlushbarPosition.TOP,
-        borderRadius: BorderRadius.circular(12),
-        margin: const EdgeInsets.all(16),
-        icon: const Icon(Icons.error, color: Colors.white),
-        shouldIconPulse: false,
-        isDismissible: true,
-        forwardAnimationCurve: Curves.easeOutBack,
-        reverseAnimationCurve: Curves.easeInBack,
-      )..show(context);
-    } finally {
+      // Rollback optimistic update jika terjadi error
       setState(() {
-        _isSubmitting = false;
+        _jamPulang.remove(guruId);
       });
-    }
-  }
-
-  Future<void> _absenPulangSemua({DateTime? customTime}) async {
-    setState(() {
-      _isSubmitting = true;
-    });
-    try {
-      for (final guru in _guruList) {
-        await _absenPulangGuru(guru.id, showNotif: false, customTime: customTime);
-      }
       
-      // Perbarui UI dengan data terbaru
-      await _fetchAbsensiByDate();
-      
-      String message;
-      if (customTime != null) {
-        final timeStr = DateFormat('HH:mm').format(customTime);
-        message = 'Semua guru telah absen pulang pada jam $timeStr';
-      } else {
-        message = 'Semua guru telah absen pulang';
-      }
-      
-      Flushbar(
-        message: message,
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 3),
-        flushbarPosition: FlushbarPosition.TOP,
-        borderRadius: BorderRadius.circular(12),
-        margin: const EdgeInsets.all(16),
-        icon: const Icon(Icons.check_circle, color: Colors.white),
-        shouldIconPulse: false,
-        isDismissible: true,
-        forwardAnimationCurve: Curves.easeOutBack,
-        reverseAnimationCurve: Curves.easeInBack,
-      )..show(context);
-    } catch (e) {
       Flushbar(
         message: 'Terjadi kesalahan: $e',
         backgroundColor: Colors.red,
