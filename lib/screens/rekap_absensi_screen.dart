@@ -5,7 +5,7 @@ import '../models/absensi_model.dart';
 import '../models/guru_model.dart';
 import '../services/api_service.dart';
 import 'dart:math' as math;
-import 'package:excel/excel.dart' hide Border;
+import 'package:excel/excel.dart' hide Border, BorderStyle;
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -985,8 +985,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   // Implementasi fungsi export ke Excel dengan support untuk Android 15
   Future<bool> requestStoragePermission() async {
     try {
-      final androidInfo = await DeviceInfoPlugin().androidInfo;
-      final sdkInt = androidInfo.version.sdkInt;
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final sdkInt = androidInfo.version.sdkInt;
 
       // Untuk Android 13 (API level 33) dan diatas, kita tidak perlu izin storage
       // karena menggunakan SAF (Storage Access Framework)
@@ -995,8 +995,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       } 
       // Untuk Android 10-12
       else if (sdkInt >= 29) {
-        final status = await Permission.storage.request();
-        return status.isGranted;
+      final status = await Permission.storage.request();
+      return status.isGranted;
       } 
       // Untuk Android 9 dan di bawahnya
       else {
@@ -1016,7 +1016,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       final loadingDialog = _showLoadingDialog('Mempersiapkan data...');
 
       // Buat Excel dengan Sheet1 default
-      final excel = Excel.createExcel();
+    final excel = Excel.createExcel();
       print('📊 Sheet default yang dibuat: ${excel.sheets.keys.toList()}');
       
       // Dapatkan referensi ke Sheet1 dan rename menjadi "Rekap Absensi"
@@ -1026,118 +1026,147 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       }
       
       // Gunakan sheet "Rekap Absensi"
-      final sheet = excel['Rekap Absensi'];
-      
-      // Tambahkan judul
-      final monthName = DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate);
-      sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('G1'));
-      final titleCell = sheet.cell(CellIndex.indexByString('A1'));
-      titleCell.value = TextCellValue('Rekap Absensi $monthName');
-      titleCell.cellStyle = CellStyle(
-        bold: true,
-        fontSize: 16,
-        horizontalAlign: HorizontalAlign.Center,
-      );
+    final sheet = excel['Rekap Absensi'];
+    
+      // Jumlah hari dalam bulan yang dipilih
+      final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
       
       // Tambahkan header
-      final headers = ['No', 'Tanggal', 'Nama Guru', 'Status', 'Jam Masuk', 'Jam Keluar', 'Keterangan'];
-      for (var i = 0; i < headers.length; i++) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
-        cell.value = TextCellValue(headers[i]);
-        cell.cellStyle = CellStyle(
-          bold: true,
-          horizontalAlign: HorizontalAlign.Center,
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('NO');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = TextCellValue('NAMA');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = TextCellValue('');
+      
+      // Merge cell untuk header "TANGGAL"
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = TextCellValue('TANGGAL');
+      
+      // Format header dengan style
+      for (int i = 0; i <= 3 + daysInMonth - 1; i++) {
+        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+        headerCell.cellStyle = CellStyle(
+      bold: true,
+      horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
         );
       }
       
-      // Tambahkan data absensi
-      int rowIndex = 3;
-      for (int i = 0; i < _filteredAbsensiData.length; i++) {
-        final absensi = _filteredAbsensiData[i];
+      // Tambahkan nomor tanggal sebagai header kolom
+      for (int day = 1; day <= daysInMonth; day++) {
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1)).value = TextCellValue('$day');
+        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1));
+        dayCell.cellStyle = CellStyle(
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+
+      // Dapatkan data guru unik dari data absensi
+      final List<Guru> guruList = _allGuruData.toList();
+      
+      // Mulai dari baris 2 untuk data guru
+      int rowIndex = 2;
+      for (int i = 0; i < guruList.length; i++) {
+        final guru = guruList[i];
         
-        // Format data
-        final tanggal = absensi['tanggal'] != null
-            ? DateFormat('dd/MM/yyyy', 'id_ID').format(DateTime.parse(absensi['tanggal']))
-            : '-';
+        // Set nomor urut dan nama guru (merge 3 baris untuk setiap guru)
+        sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex), 
+                   CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex + 2));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('${i + 1}');
+        
+        sheet.merge(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex), 
+                   CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex + 2));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue('${guru.nama}');
+        
+        // Tambahkan label "Datang" dan "Pulang" di kolom 3
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue('Datang');
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex + 1)).value = TextCellValue('Pulang');
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex + 2)).value = TextCellValue('TTD');
+        
+        // Style untuk cell guru
+        for (int col = 0; col < 3; col++) {
+          for (int r = 0; r < 3; r++) {
+            final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex + r));
+      cell.cellStyle = CellStyle(
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+          }
+        }
+        
+        // Isi data absensi untuk setiap tanggal
+        for (int day = 1; day <= daysInMonth; day++) {
+          // Buat tanggal untuk pencarian data
+          final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+          
+          // Cari data absensi untuk guru dan tanggal ini
+          final absensiData = _filteredAbsensiData.where((absensi) => 
+            absensi['guruId']?.toString() == guru.id.toString() && 
+            absensi['tanggal']?.startsWith(formattedDate) == true
+          ).toList();
+          
+          if (absensiData.isNotEmpty) {
+            final absensi = absensiData.first;
+            String jamMasuk = '';
+            String jamKeluar = '';
             
-        final guruNama = _getGuruName(absensi['guruId']?.toString());
-        final status = absensi['status']?.toString().toUpperCase() ?? 'HADIR';
-        
-        String jamMasuk = '-';
-        if (absensi['jamMasuk'] != null) {
-          try {
-            final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
-            jamMasuk = DateFormat('HH:mm:ss', 'id_ID').format(jamMasukDate);
-          } catch (e) {
-            jamMasuk = absensi['jamMasuk'];
-          }
+            // Format jam masuk
+      if (absensi['jamMasuk'] != null) {
+        try {
+          final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
+                jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+        } catch (e) {
+                jamMasuk = '08:00';  // Default jika format tidak valid
         }
-        
-        String jamKeluar = '-';
-        if (absensi['jamKeluar'] != null) {
-          try {
-            final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
-            jamKeluar = DateFormat('HH:mm:ss', 'id_ID').format(jamKeluarDate);
-          } catch (e) {
-            jamKeluar = absensi['jamKeluar'];
-          }
-        }
-        
-        final keterangan = absensi['keterangan']?.toString() ?? '-';
-        
-        // Tambahkan ke Excel
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = IntCellValue(i + 1);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue(tanggal);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue(guruNama);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = TextCellValue(status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = TextCellValue(jamKeluar);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = TextCellValue(keterangan);
-        
-        rowIndex++;
+            } else {
+              jamMasuk = '08:00';  // Default jika tidak ada data
       }
       
-      // Tambahkan ringkasan statistik
-      rowIndex += 2; // Beri jarak
-      
-      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex), 
-                 CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Ringkasan');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).cellStyle = CellStyle(
-        bold: true,
-        fontSize: 14,
-      );
-      rowIndex++;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Guru');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalGuru);
-      rowIndex++;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Hadir');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalHadir);
-      rowIndex++;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Izin');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalIzin);
-      rowIndex++;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Sakit');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalSakit);
-      rowIndex++;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Alpa');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalAlpa);
-      rowIndex++;
+            // Format jam keluar
+      if (absensi['jamKeluar'] != null) {
+        try {
+          final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
+                jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+        } catch (e) {
+                jamKeluar = '10:00';  // Default jika format tidak valid
+              }
+            } else {
+              jamKeluar = '10:00';  // Default jika tidak ada data
+            }
+            
+            // Isi jam masuk dan keluar
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
+          } else {
+            // Default jika tidak ada data
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue('');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue('');
+          }
+          
+          // Style untuk cell absensi
+          for (int r = 0; r < 3; r++) {
+            final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + r));
+            cell.cellStyle = CellStyle(
+              horizontalAlign: HorizontalAlign.Center,
+              verticalAlign: VerticalAlign.Center,
+            );
+          }
+        }
+        
+        // Pindah ke guru berikutnya (3 baris per guru)
+        rowIndex += 3;
+      }
       
       // Atur lebar kolom
-      sheet.setColumnWidth(0, 5); // No
-      sheet.setColumnWidth(1, 15); // Tanggal
-      sheet.setColumnWidth(2, 30); // Nama Guru
-      sheet.setColumnWidth(3, 10); // Status
-      sheet.setColumnWidth(4, 15); // Jam Masuk
-      sheet.setColumnWidth(5, 15); // Jam Keluar
-      sheet.setColumnWidth(6, 25); // Keterangan
+      sheet.setColumnWidth(0, 5);  // NO
+      sheet.setColumnWidth(1, 30); // NAMA
+      sheet.setColumnWidth(2, 10); // Datang/Pulang
+      
+      // Atur lebar kolom tanggal
+      for (int day = 1; day <= daysInMonth; day++) {
+        sheet.setColumnWidth(2 + day, 6);  // Lebar untuk tanggal
+      }
       
       // Hapus semua sheet lain selain "Rekap Absensi"
       final sheetNames = List<String>.from(excel.sheets.keys);
@@ -1154,16 +1183,16 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       print('✅ Sheet setelah pembersihan: ${excel.sheets.keys.toList()}');
       
       // Generate file Excel
-      final excelData = excel.encode();
-      if (excelData == null) {
+    final excelData = excel.encode();
+    if (excelData == null) {
         Navigator.pop(context); // Tutup dialog loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menghasilkan data Excel')),
-        );
-        return;
-      }
-      
-      final monthYear = DateFormat('MMMM-yyyy', 'id_ID').format(_selectedDate);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menghasilkan data Excel')),
+      );
+      return;
+    }
+    
+    final monthYear = DateFormat('MMMM-yyyy', 'id_ID').format(_selectedDate);
       final fileName = 'rekap-absensi-$monthYear.xlsx';
       
       // Tutup dialog loading sebelum pengguna memilih folder
@@ -1318,8 +1347,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       
       // Pilih folder untuk menyimpan file
       String? uri = await _selectFolder();
-      if (uri == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -1333,21 +1362,21 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             margin: EdgeInsets.all(8),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
-        );
-        return;
-      }
+      );
+      return;
+    }
 
       // Tampilkan dialog loading kembali untuk proses ekspor
       final savingDialog = _showLoadingDialog('Menyimpan file...');
 
       // Convert ke Uint8List dan tulis file
-      final Uint8List bytes = Uint8List.fromList(excelData);
+    final Uint8List bytes = Uint8List.fromList(excelData);
       bool success = await SAFHelper.writeFileToUri(
-        uri: uri,
-        fileName: fileName,
-        bytes: bytes,
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
+      uri: uri,
+      fileName: fileName,
+      bytes: bytes,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
       
       // Jika gagal, coba minta folder baru
       if (!success) {
@@ -1500,11 +1529,11 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         Navigator.pop(context);
       }
       
-      if (success) {
+    if (success) {
         // Simpan file ke lokasi sementara untuk fitur buka dan bagikan
         final tempFilePath = await _getExternalFilePath(uri, fileName);
         
-        ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -1630,8 +1659,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             ),
           );
         }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
@@ -1809,83 +1838,155 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
     try {
       // Buat Excel dengan Sheet1 default
       final excel = Excel.createExcel();
+      print('📊 Sheet default yang dibuat: ${excel.sheets.keys.toList()}');
       
       // Dapatkan referensi ke Sheet1 dan rename menjadi "Rekap Absensi"
       if (excel.sheets.containsKey('Sheet1')) {
         excel.rename('Sheet1', 'Rekap Absensi');
+        print('🔄 Sheet1 direname menjadi "Rekap Absensi"');
       }
       
       // Gunakan sheet "Rekap Absensi"
       final sheet = excel['Rekap Absensi'];
-      
-      // Tambahkan judul
-      final monthName = DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate);
-      sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('G1'));
-      final titleCell = sheet.cell(CellIndex.indexByString('A1'));
-      titleCell.value = TextCellValue('Rekap Absensi $monthName');
-      titleCell.cellStyle = CellStyle(
-        bold: true,
-        fontSize: 16,
-        horizontalAlign: HorizontalAlign.Center,
-      );
+
+      // Jumlah hari dalam bulan yang dipilih
+      final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
       
       // Tambahkan header
-      final headers = ['No', 'Tanggal', 'Nama Guru', 'Status', 'Jam Masuk', 'Jam Keluar', 'Keterangan'];
-      for (var i = 0; i < headers.length; i++) {
-        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
-        cell.value = TextCellValue(headers[i]);
-        cell.cellStyle = CellStyle(
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('NO');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = TextCellValue('NAMA');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = TextCellValue('');
+      
+      // Merge cell untuk header "TANGGAL"
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = TextCellValue('TANGGAL');
+      
+      // Format header dengan style
+      for (int i = 0; i <= 3 + daysInMonth - 1; i++) {
+        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+        headerCell.cellStyle = CellStyle(
           bold: true,
           horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
         );
       }
       
-      // Tambahkan data absensi
-      int rowIndex = 3;
-      for (int i = 0; i < _filteredAbsensiData.length; i++) {
-        final absensi = _filteredAbsensiData[i];
+      // Tambahkan nomor tanggal sebagai header kolom
+      for (int day = 1; day <= daysInMonth; day++) {
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1)).value = TextCellValue('$day');
+        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1));
+        dayCell.cellStyle = CellStyle(
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+
+      // Dapatkan data guru unik dari data absensi
+      final List<Guru> guruList = _allGuruData.toList();
+      
+      // Mulai dari baris 2 untuk data guru
+      int rowIndex = 2;
+      for (int i = 0; i < guruList.length; i++) {
+        final guru = guruList[i];
         
-        // Format data
-        final tanggal = absensi['tanggal'] != null
-            ? DateFormat('dd/MM/yyyy', 'id_ID').format(DateTime.parse(absensi['tanggal']))
-            : '-';
+        // Set nomor urut dan nama guru (merge 3 baris untuk setiap guru)
+        sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex), 
+                   CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex + 2));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('${i + 1}');
+        
+        sheet.merge(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex), 
+                   CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex + 2));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue('${guru.nama}');
+        
+        // Tambahkan label "Datang" dan "Pulang" di kolom 3
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue('Datang');
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex + 1)).value = TextCellValue('Pulang');
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex + 2)).value = TextCellValue('TTD');
+        
+        // Style untuk cell guru
+        for (int col = 0; col < 3; col++) {
+          for (int r = 0; r < 3; r++) {
+            final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIndex + r));
+            cell.cellStyle = CellStyle(
+              horizontalAlign: HorizontalAlign.Center,
+              verticalAlign: VerticalAlign.Center,
+            );
+          }
+        }
+        
+        // Isi data absensi untuk setiap tanggal
+        for (int day = 1; day <= daysInMonth; day++) {
+          // Buat tanggal untuk pencarian data
+          final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+          final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+          
+          // Cari data absensi untuk guru dan tanggal ini
+          final absensiData = _filteredAbsensiData.where((absensi) => 
+            absensi['guruId']?.toString() == guru.id.toString() && 
+            absensi['tanggal']?.startsWith(formattedDate) == true
+          ).toList();
+          
+          if (absensiData.isNotEmpty) {
+            final absensi = absensiData.first;
+            String jamMasuk = '';
+            String jamKeluar = '';
             
-        final guruNama = _getGuruName(absensi['guruId']?.toString());
-        final status = absensi['status']?.toString().toUpperCase() ?? 'HADIR';
-        
-        String jamMasuk = '-';
-        if (absensi['jamMasuk'] != null) {
-          try {
-            final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
-            jamMasuk = DateFormat('HH:mm:ss', 'id_ID').format(jamMasukDate);
-          } catch (e) {
-            jamMasuk = absensi['jamMasuk'];
+            // Format jam masuk
+            if (absensi['jamMasuk'] != null) {
+              try {
+                final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
+                jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+              } catch (e) {
+                jamMasuk = '08:00';  // Default jika format tidak valid
+              }
+            } else {
+              jamMasuk = '08:00';  // Default jika tidak ada data
+            }
+            
+            // Format jam keluar
+            if (absensi['jamKeluar'] != null) {
+              try {
+                final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
+                jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+              } catch (e) {
+                jamKeluar = '10:00';  // Default jika format tidak valid
+              }
+            } else {
+              jamKeluar = '10:00';  // Default jika tidak ada data
+            }
+            
+            // Isi jam masuk dan keluar
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
+          } else {
+            // Default jika tidak ada data
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue('');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue('');
+          }
+          
+          // Style untuk cell absensi
+          for (int r = 0; r < 3; r++) {
+            final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + r));
+            cell.cellStyle = CellStyle(
+              horizontalAlign: HorizontalAlign.Center,
+              verticalAlign: VerticalAlign.Center,
+            );
           }
         }
         
-        String jamKeluar = '-';
-        if (absensi['jamKeluar'] != null) {
-          try {
-            final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
-            jamKeluar = DateFormat('HH:mm:ss', 'id_ID').format(jamKeluarDate);
-          } catch (e) {
-            jamKeluar = absensi['jamKeluar'];
-          }
-        }
-        
-        final keterangan = absensi['keterangan']?.toString() ?? '-';
-        
-        // Tambahkan ke Excel
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = IntCellValue(i + 1);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue(tanggal);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue(guruNama);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = TextCellValue(status);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = TextCellValue(jamKeluar);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = TextCellValue(keterangan);
-        
-        rowIndex++;
+        // Pindah ke guru berikutnya (3 baris per guru)
+        rowIndex += 3;
+      }
+      
+      // Atur lebar kolom
+      sheet.setColumnWidth(0, 5);  // NO
+      sheet.setColumnWidth(1, 30); // NAMA
+      sheet.setColumnWidth(2, 10); // Datang/Pulang
+      
+      // Atur lebar kolom tanggal
+      for (int day = 1; day <= daysInMonth; day++) {
+        sheet.setColumnWidth(2 + day, 6);  // Lebar untuk tanggal
       }
       
       // Hapus semua sheet lain selain "Rekap Absensi"
