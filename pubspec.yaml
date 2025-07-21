@@ -1,5 +1,5 @@
-name: apkabsensi
-description: "A new Flutter project."
+name: absensi
+description: "Aplikasi Absensi modern berbasis Flutter yang memudahkan pencatatan kehadiran, dilengkapi fitur UI responsif, keamanan data, dan integrasi dengan berbagai layanan untuk pengalaman pengguna yang optimal."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+9
+version: 1.0.0+12
 
 environment:
   sdk: ^3.8.1
@@ -47,12 +47,16 @@ dependencies:
   connectivity_plus: ^6.1.4       # Untuk mengecek konektivitas
   logger: ^2.6.0                # Untuk logging yang lebih baik
   flutter_secure_storage: ^9.0.0  # Untuk penyimpanan yang lebih aman
-  path_provider: ^2.1.2           # Untuk akses file sistem
+  path_provider: ^2.1.5           # Untuk akses file sistem
   form_field_validator: ^1.1.0
   fl_chart: ^1.0.0
   rename: ^3.1.0
   another_flushbar: ^1.12.30
   shared_preferences: ^2.5.3
+  excel: ^4.0.6
+  permission_handler: ^12.0.1
+  file_saver: ^0.3.1
+  device_info_plus: ^9.1.2
 
 dev_dependencies:
   flutter_test:

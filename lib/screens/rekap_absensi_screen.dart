@@ -5,6 +5,16 @@ import '../models/absensi_model.dart';
 import '../models/guru_model.dart';
 import '../services/api_service.dart';
 import 'dart:math' as math;
+import 'package:excel/excel.dart' hide Border;
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:another_flushbar/flushbar.dart';
+import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:file_saver/file_saver.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import '../utils/saf_helper.dart';
 
 class RekapAbsensiScreen extends StatefulWidget {
   const RekapAbsensiScreen({Key? key}) : super(key: key);
@@ -970,10 +980,373 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
     );
   }
 
-  // Tambahkan fungsi export sederhana
-  void _exportData() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur export belum diimplementasikan.')),
+  // Implementasi fungsi export ke Excel dengan support untuk Android 15
+  Future<bool> requestStoragePermission() async {
+    try {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      // Untuk Android 13 (API level 33) dan diatas, kita tidak perlu izin storage
+      // karena menggunakan SAF (Storage Access Framework)
+      if (sdkInt >= 33) {
+        return true; // Langsung return true karena menggunakan SAF
+      } 
+      // Untuk Android 10-12
+      else if (sdkInt >= 29) {
+        final status = await Permission.storage.request();
+        return status.isGranted;
+      } 
+      // Untuk Android 9 dan di bawahnya
+      else {
+        final status = await Permission.storage.request();
+        return status.isGranted;
+      }
+    } catch (e) {
+      print('Error requesting permissions: $e');
+      return false;
+    }
+  }
+
+  // Ganti _exportData dengan SAF yang lebih robust
+  Future<void> _exportData() async {
+    try {
+      // Tampilkan dialog loading
+      final loadingDialog = _showLoadingDialog('Mempersiapkan data...');
+
+      final excel = Excel.createExcel();
+      final sheet = excel['Rekap Absensi'];
+      
+      // Tambahkan judul
+      final monthName = DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate);
+      sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('G1'));
+      final titleCell = sheet.cell(CellIndex.indexByString('A1'));
+      titleCell.value = TextCellValue('Rekap Absensi $monthName');
+      titleCell.cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+      );
+      
+      // Tambahkan header
+      final headers = ['No', 'Tanggal', 'Nama Guru', 'Status', 'Jam Masuk', 'Jam Keluar', 'Keterangan'];
+      for (var i = 0; i < headers.length; i++) {
+        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
+        cell.value = TextCellValue(headers[i]);
+        cell.cellStyle = CellStyle(
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+      
+      // Tambahkan data absensi
+      int rowIndex = 3;
+      for (int i = 0; i < _filteredAbsensiData.length; i++) {
+        final absensi = _filteredAbsensiData[i];
+        
+        // Format data
+        final tanggal = absensi['tanggal'] != null
+            ? DateFormat('dd/MM/yyyy', 'id_ID').format(DateTime.parse(absensi['tanggal']))
+            : '-';
+            
+        final guruNama = _getGuruName(absensi['guruId']?.toString());
+        final status = absensi['status']?.toString().toUpperCase() ?? 'HADIR';
+        
+        String jamMasuk = '-';
+        if (absensi['jamMasuk'] != null) {
+          try {
+            final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
+            jamMasuk = DateFormat('HH:mm:ss', 'id_ID').format(jamMasukDate);
+          } catch (e) {
+            jamMasuk = absensi['jamMasuk'];
+          }
+        }
+        
+        String jamKeluar = '-';
+        if (absensi['jamKeluar'] != null) {
+          try {
+            final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
+            jamKeluar = DateFormat('HH:mm:ss', 'id_ID').format(jamKeluarDate);
+          } catch (e) {
+            jamKeluar = absensi['jamKeluar'];
+          }
+        }
+        
+        final keterangan = absensi['keterangan']?.toString() ?? '-';
+        
+        // Tambahkan ke Excel
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = IntCellValue(i + 1);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue(tanggal);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue(guruNama);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = TextCellValue(status);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = TextCellValue(jamKeluar);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = TextCellValue(keterangan);
+        
+        rowIndex++;
+      }
+      
+      // Tambahkan ringkasan statistik
+      rowIndex += 2; // Beri jarak
+      
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex), 
+                 CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Ringkasan');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).cellStyle = CellStyle(
+        bold: true,
+        fontSize: 14,
+      );
+      rowIndex++;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Guru');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalGuru);
+      rowIndex++;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Hadir');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalHadir);
+      rowIndex++;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Izin');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalIzin);
+      rowIndex++;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Sakit');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalSakit);
+      rowIndex++;
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = TextCellValue('Total Alpa');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = IntCellValue(_totalAlpa);
+      rowIndex++;
+      
+      // Atur lebar kolom
+      sheet.setColumnWidth(0, 5); // No
+      sheet.setColumnWidth(1, 15); // Tanggal
+      sheet.setColumnWidth(2, 30); // Nama Guru
+      sheet.setColumnWidth(3, 10); // Status
+      sheet.setColumnWidth(4, 15); // Jam Masuk
+      sheet.setColumnWidth(5, 15); // Jam Keluar
+      sheet.setColumnWidth(6, 25); // Keterangan
+      
+      // Simpan file Excel sebagai bytes
+      final excelData = excel.encode();
+      if (excelData == null) {
+        Navigator.pop(context); // Tutup dialog loading
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal menghasilkan data Excel')),
+        );
+        return;
+      }
+      
+      final monthYear = DateFormat('MMMM-yyyy', 'id_ID').format(_selectedDate);
+      final fileName = 'rekap-absensi-$monthYear.xlsx';
+      
+      // Tutup dialog loading sebelum pengguna memilih folder
+      Navigator.pop(context);
+
+      // Fungsi untuk minta pengguna pilih folder
+      Future<String?> _selectFolder({bool forceNew = false}) async {
+        if (forceNew) {
+          // Jika dipaksa pilih folder baru, hapus URI yang tersimpan
+          await SAFHelper.clearSavedUri();
+          
+          // Tampilkan dialog petunjuk
+          await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text('Pilih Folder Baru'),
+                content: Text(
+                  'Anda akan diminta memilih folder untuk menyimpan file Excel.\n\n'
+                  'Pada Android 13 ke atas, silakan pilih folder Documents.'
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: Text('OK'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        }
+        
+        // Cek apakah sudah pernah memilih folder
+        String? uri = forceNew ? null : await SAFHelper.getSavedDocumentTreeUri();
+        
+        // Jika belum ada URI tersimpan, minta pengguna memilih folder
+        if (uri == null) {
+          // Tampilkan dialog petunjuk jika pertama kali
+          if (!forceNew) {
+            await showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text('Pilih Folder Documents'),
+                  content: Text(
+                    'Anda akan diminta memilih folder untuk menyimpan file Excel.\n\n'
+                    'Pada Android 13 ke atas, silakan pilih folder Documents.'
+                  ),
+                  actions: <Widget>[
+                    TextButton(
+                      child: Text('OK'),
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
+          }
+
+          // Minta pengguna memilih folder
+          uri = await SAFHelper.openDocumentTree();
+        }
+        
+        return uri;
+      }
+      
+      // Pilih folder untuk menyimpan file
+      String? uri = await _selectFolder();
+      if (uri == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export dibatalkan')),
+        );
+        return;
+      }
+
+      // Tampilkan dialog loading kembali untuk proses ekspor
+      final savingDialog = _showLoadingDialog('Menyimpan file...');
+
+      // Convert ke Uint8List dan tulis file
+      final Uint8List bytes = Uint8List.fromList(excelData);
+      bool success = await SAFHelper.writeFileToUri(
+        uri: uri,
+        fileName: fileName,
+        bytes: bytes,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      
+      // Jika gagal, coba minta folder baru
+      if (!success) {
+        // Tutup dialog loading
+        Navigator.pop(context);
+        
+        // Tanya pengguna apakah mau pilih folder baru
+        final shouldSelectNewFolder = await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Gagal Menyimpan File'),
+              content: Text(
+                'Gagal menyimpan file ke folder yang dipilih. Hal ini mungkin karena:\n\n'
+                '1. Izin akses folder sudah tidak valid\n'
+                '2. Folder yang dipilih tidak dapat ditulis\n\n'
+                'Apakah anda ingin memilih folder lain?'
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Batal'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: Text('Pilih Folder Baru'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ?? false;
+        
+        if (shouldSelectNewFolder) {
+          // Pilih folder baru
+          uri = await _selectFolder(forceNew: true);
+          if (uri == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Export dibatalkan')),
+            );
+            return;
+          }
+          
+          // Tampilkan dialog loading kembali
+          final retryDialog = _showLoadingDialog('Mencoba menyimpan ulang...');
+          
+          // Coba simpan file lagi
+          success = await SAFHelper.writeFileToUri(
+            uri: uri,
+            fileName: fileName,
+            bytes: bytes,
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          );
+          
+          // Tutup dialog loading
+          Navigator.pop(context);
+        } else {
+          return;
+        }
+      } else {
+        // Tutup dialog loading jika berhasil di percobaan pertama
+        Navigator.pop(context);
+      }
+      
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('File berhasil disimpan ke folder Documents'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'Pilih Folder Lain',
+              onPressed: () async {
+                final newUri = await _selectFolder(forceNew: true);
+                if (newUri != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Folder baru dipilih untuk ekspor berikutnya')),
+                  );
+                }
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal export file setelah beberapa percobaan'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // Pastikan dialog loading ditutup jika terjadi error
+      Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+  
+  // Dialog loading
+  dynamic _showLoadingDialog(String message) {
+    return showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(message),
+          ],
+        ),
+      ),
     );
   }
 
