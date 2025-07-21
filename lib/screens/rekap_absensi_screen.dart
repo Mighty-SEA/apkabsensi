@@ -1368,62 +1368,62 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           
           if (absensiData.isNotEmpty) {
             final absensi = absensiData.first;
-            String jamMasuk = '';
-            String jamKeluar = '';
-            
-            // Format jam masuk dari database
-            if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
-              // Cek jika format jamMasuk sudah dalam format HH:mm
-              if (absensi['jamMasuk'].toString().contains(':')) {
-                jamMasuk = absensi['jamMasuk'].toString();
-                // Ambil hanya bagian HH:mm jika dalam format lengkap
-                if (jamMasuk.length > 5) {
-                  jamMasuk = jamMasuk.substring(0, 5);
-                }
-              } else {
-                try {
-                  // Jika masih dalam format ISO timestamp lengkap
-                  final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
-                  jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
-                } catch (e) {
-                  print('Error parsing jamMasuk: ${absensi['jamMasuk']} - $e');
-                  jamMasuk = '';  // Kosongkan jika format tidak valid
+            String status = absensi['status']?.toString()?.toUpperCase() ?? '';
+            if (status == 'SAKIT' || status == 'IZIN' || status == 'ALPA') {
+              // Tentukan huruf
+              String huruf = status == 'SAKIT' ? 'S' : status == 'IZIN' ? 'I' : 'A';
+              // Merge cell Datang & Pulang
+              sheet.merge(
+                CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex),
+                CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)
+              );
+              // Isi huruf pada cell Datang
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(huruf);
+              // Kosongkan cell TTD
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
+            } else {
+              // HADIR: isi jam datang dan pulang seperti biasa
+              String jamMasuk = '';
+              String jamKeluar = '';
+              if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
+                if (absensi['jamMasuk'].toString().contains(':')) {
+                  jamMasuk = absensi['jamMasuk'].toString();
+                  if (jamMasuk.length > 5) {
+                    jamMasuk = jamMasuk.substring(0, 5);
+                  }
+                } else {
+                  try {
+                    final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
+                    jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+                  } catch (e) {
+                    jamMasuk = '';
+                  }
                 }
               }
-            } else {
-              jamMasuk = '';  // Kosongkan jika tidak ada data
-            }
-            
-            // Format jam keluar dari database
-            if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
-              // Cek jika format jamKeluar sudah dalam format HH:mm
-              if (absensi['jamKeluar'].toString().contains(':')) {
-                jamKeluar = absensi['jamKeluar'].toString();
-                // Ambil hanya bagian HH:mm jika dalam format lengkap
-                if (jamKeluar.length > 5) {
-                  jamKeluar = jamKeluar.substring(0, 5);
-                }
-              } else {
-                try {
-                  // Jika masih dalam format ISO timestamp lengkap
-                  final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
-                  jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
-                } catch (e) {
-                  print('Error parsing jamKeluar: ${absensi['jamKeluar']} - $e');
-                  jamKeluar = '';  // Kosongkan jika format tidak valid
+              if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
+                if (absensi['jamKeluar'].toString().contains(':')) {
+                  jamKeluar = absensi['jamKeluar'].toString();
+                  if (jamKeluar.length > 5) {
+                    jamKeluar = jamKeluar.substring(0, 5);
+                  }
+                } else {
+                  try {
+                    final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
+                    jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+                  } catch (e) {
+                    jamKeluar = '';
+                  }
                 }
               }
-            } else {
-              jamKeluar = '';  // Kosongkan jika tidak ada data
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
             }
-            
-            // Isi jam masuk dan keluar
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
           } else {
             // Default jika tidak ada data
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue('');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue('');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
           }
           
           // Style untuk cell absensi
@@ -2358,62 +2358,62 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           
           if (absensiData.isNotEmpty) {
             final absensi = absensiData.first;
-            String jamMasuk = '';
-            String jamKeluar = '';
-            
-            // Format jam masuk dari database
-            if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
-              // Cek jika format jamMasuk sudah dalam format HH:mm
-              if (absensi['jamMasuk'].toString().contains(':')) {
-                jamMasuk = absensi['jamMasuk'].toString();
-                // Ambil hanya bagian HH:mm jika dalam format lengkap
-                if (jamMasuk.length > 5) {
-                  jamMasuk = jamMasuk.substring(0, 5);
-                }
-              } else {
-                try {
-                  // Jika masih dalam format ISO timestamp lengkap
-                  final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
-                  jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
-                } catch (e) {
-                  print('Error parsing jamMasuk (createExcel): ${absensi['jamMasuk']} - $e');
-                  jamMasuk = '';  // Kosongkan jika format tidak valid
+            String status = absensi['status']?.toString()?.toUpperCase() ?? '';
+            if (status == 'SAKIT' || status == 'IZIN' || status == 'ALPA') {
+              // Tentukan huruf
+              String huruf = status == 'SAKIT' ? 'S' : status == 'IZIN' ? 'I' : 'A';
+              // Merge cell Datang & Pulang
+              sheet.merge(
+                CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex),
+                CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)
+              );
+              // Isi huruf pada cell Datang
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(huruf);
+              // Kosongkan cell TTD
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
+            } else {
+              // HADIR: isi jam datang dan pulang seperti biasa
+              String jamMasuk = '';
+              String jamKeluar = '';
+              if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
+                if (absensi['jamMasuk'].toString().contains(':')) {
+                  jamMasuk = absensi['jamMasuk'].toString();
+                  if (jamMasuk.length > 5) {
+                    jamMasuk = jamMasuk.substring(0, 5);
+                  }
+                } else {
+                  try {
+                    final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
+                    jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+                  } catch (e) {
+                    jamMasuk = '';
+                  }
                 }
               }
-            } else {
-              jamMasuk = '';  // Kosongkan jika tidak ada data
-            }
-            
-            // Format jam keluar dari database
-            if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
-              // Cek jika format jamKeluar sudah dalam format HH:mm
-              if (absensi['jamKeluar'].toString().contains(':')) {
-                jamKeluar = absensi['jamKeluar'].toString();
-                // Ambil hanya bagian HH:mm jika dalam format lengkap
-                if (jamKeluar.length > 5) {
-                  jamKeluar = jamKeluar.substring(0, 5);
-                }
-              } else {
-                try {
-                  // Jika masih dalam format ISO timestamp lengkap
-                  final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
-                  jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
-                } catch (e) {
-                  print('Error parsing jamKeluar (createExcel): ${absensi['jamKeluar']} - $e');
-                  jamKeluar = '';  // Kosongkan jika format tidak valid
+              if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
+                if (absensi['jamKeluar'].toString().contains(':')) {
+                  jamKeluar = absensi['jamKeluar'].toString();
+                  if (jamKeluar.length > 5) {
+                    jamKeluar = jamKeluar.substring(0, 5);
+                  }
+                } else {
+                  try {
+                    final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
+                    jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+                  } catch (e) {
+                    jamKeluar = '';
+                  }
                 }
               }
-            } else {
-              jamKeluar = '';  // Kosongkan jika tidak ada data
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
+              sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
             }
-            
-            // Isi jam masuk dan keluar
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
-            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue(jamKeluar);
           } else {
             // Default jika tidak ada data
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue('');
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 1)).value = TextCellValue('');
+            sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + 2)).value = TextCellValue('');
           }
           
           // Style untuk cell absensi
