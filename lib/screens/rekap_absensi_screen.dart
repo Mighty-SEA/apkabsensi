@@ -1255,14 +1255,64 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         );
       }
       
-      // Tambahkan nomor tanggal sebagai header kolom
+      // Tambahkan nomor tanggal sebagai header kolom (baris ke-4, indeks 3)
       for (int day = 1; day <= daysInMonth; day++) {
+        // Cek apakah hari ini libur
+        final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+        bool isLibur = _isHariLibur(date);
+        String? alasanLibur = _getAlasanLibur(date);
+        bool isLiburNasional = alasanLibur != null && alasanLibur.toLowerCase().contains('libur nasional');
+        bool isLiburAkhirPekan = isLibur && !isLiburNasional;
+        
+        // Set cell value dan style untuk nomor tanggal
         sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1)).value = TextCellValue('$day');
         final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1));
-        dayCell.cellStyle = CellStyle(
-          horizontalAlign: HorizontalAlign.Center,
-          verticalAlign: VerticalAlign.Center,
-        );
+        
+        // Style untuk header tanggal
+        if (isLiburNasional) {
+          // Libur nasional - background merah
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+            backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+            fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+          );
+          
+          // Tambahkan text vertikal untuk nama libur nasional
+          if (alasanLibur != null) {
+            // Ekstrak nama libur dari alasan
+            String namaLibur = alasanLibur.replaceAll('Libur Nasional: ', '').toUpperCase();
+            
+            // Tulis nama libur secara vertikal
+            for (int i = 0; i < namaLibur.length; i++) {
+              final charCell = sheet.cell(CellIndex.indexByColumnRow(
+                columnIndex: 2 + day, 
+                rowIndex: headerRowStart + 2 + i
+              ));
+              charCell.value = TextCellValue(namaLibur[i]);
+              charCell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+                fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+                bold: true,
+              );
+            }
+          }
+        } else if (isLiburAkhirPekan) {
+          // Libur akhir pekan - background hijau
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+            backgroundColorHex: ExcelColor.fromHexString('#00FF00'), // Warna hijau
+          );
+        } else {
+          // Hari normal
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+          );
+        }
       }
 
       // Dapatkan data guru unik dari data absensi
@@ -1304,6 +1354,12 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           final date = DateTime(_selectedDate.year, _selectedDate.month, day);
           final formattedDate = DateFormat('yyyy-MM-dd').format(date);
           
+          // Cek apakah hari ini libur
+          bool isLibur = _isHariLibur(date);
+          String? alasanLibur = _getAlasanLibur(date);
+          bool isLiburNasional = alasanLibur != null && alasanLibur.toLowerCase().contains('libur nasional');
+          bool isLiburAkhirPekan = isLibur && !isLiburNasional;
+          
           // Cari data absensi untuk guru dan tanggal ini
           final absensiData = _filteredAbsensiData.where((absensi) => 
             absensi['guruId']?.toString() == guru.id.toString() && 
@@ -1316,50 +1372,50 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             String jamKeluar = '';
             
             // Format jam masuk dari database
-      if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
-        // Cek jika format jamMasuk sudah dalam format HH:mm
-        if (absensi['jamMasuk'].toString().contains(':')) {
-          jamMasuk = absensi['jamMasuk'].toString();
-          // Ambil hanya bagian HH:mm jika dalam format lengkap
-          if (jamMasuk.length > 5) {
-            jamMasuk = jamMasuk.substring(0, 5);
-          }
-        } else {
-          try {
-            // Jika masih dalam format ISO timestamp lengkap
-            final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
-            jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
-          } catch (e) {
-            print('Error parsing jamMasuk: ${absensi['jamMasuk']} - $e');
-            jamMasuk = '';  // Kosongkan jika format tidak valid
-          }
-        }
-      } else {
-        jamMasuk = '';  // Kosongkan jika tidak ada data
-      }
-      
-      // Format jam keluar dari database
-      if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
-        // Cek jika format jamKeluar sudah dalam format HH:mm
-        if (absensi['jamKeluar'].toString().contains(':')) {
-          jamKeluar = absensi['jamKeluar'].toString();
-          // Ambil hanya bagian HH:mm jika dalam format lengkap
-          if (jamKeluar.length > 5) {
-            jamKeluar = jamKeluar.substring(0, 5);
-          }
-        } else {
-          try {
-            // Jika masih dalam format ISO timestamp lengkap
-            final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
-            jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
-          } catch (e) {
-            print('Error parsing jamKeluar: ${absensi['jamKeluar']} - $e');
-            jamKeluar = '';  // Kosongkan jika format tidak valid
-          }
-        }
-      } else {
-        jamKeluar = '';  // Kosongkan jika tidak ada data
-      }
+            if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
+              // Cek jika format jamMasuk sudah dalam format HH:mm
+              if (absensi['jamMasuk'].toString().contains(':')) {
+                jamMasuk = absensi['jamMasuk'].toString();
+                // Ambil hanya bagian HH:mm jika dalam format lengkap
+                if (jamMasuk.length > 5) {
+                  jamMasuk = jamMasuk.substring(0, 5);
+                }
+              } else {
+                try {
+                  // Jika masih dalam format ISO timestamp lengkap
+                  final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
+                  jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+                } catch (e) {
+                  print('Error parsing jamMasuk: ${absensi['jamMasuk']} - $e');
+                  jamMasuk = '';  // Kosongkan jika format tidak valid
+                }
+              }
+            } else {
+              jamMasuk = '';  // Kosongkan jika tidak ada data
+            }
+            
+            // Format jam keluar dari database
+            if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
+              // Cek jika format jamKeluar sudah dalam format HH:mm
+              if (absensi['jamKeluar'].toString().contains(':')) {
+                jamKeluar = absensi['jamKeluar'].toString();
+                // Ambil hanya bagian HH:mm jika dalam format lengkap
+                if (jamKeluar.length > 5) {
+                  jamKeluar = jamKeluar.substring(0, 5);
+                }
+              } else {
+                try {
+                  // Jika masih dalam format ISO timestamp lengkap
+                  final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
+                  jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+                } catch (e) {
+                  print('Error parsing jamKeluar: ${absensi['jamKeluar']} - $e');
+                  jamKeluar = '';  // Kosongkan jika format tidak valid
+                }
+              }
+            } else {
+              jamKeluar = '';  // Kosongkan jika tidak ada data
+            }
             
             // Isi jam masuk dan keluar
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
@@ -1373,10 +1429,27 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           // Style untuk cell absensi
           for (int r = 0; r < 3; r++) {
             final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + r));
-            cell.cellStyle = CellStyle(
-              horizontalAlign: HorizontalAlign.Center,
-              verticalAlign: VerticalAlign.Center,
-            );
+            
+            // Tambahkan warna background sesuai status libur
+            if (isLiburNasional) {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+                fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+              );
+            } else if (isLiburAkhirPekan) {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#00FF00'), // Warna hijau
+              );
+            } else {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+              );
+            }
           }
         }
         
@@ -2110,7 +2183,28 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).value = TextCellValue('Tahun');
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).value = TextCellValue('${_selectedDate.year}');
       
-      // Tambahkan header utama pada baris ke-3 (setelah judul)
+      // Format style untuk baris informasi bulan dan tahun
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      // Tambahkan header
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: headerRowStart)).value = TextCellValue('NO');
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: headerRowStart)).value = TextCellValue('NAMA');
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: headerRowStart)).value = TextCellValue('');
@@ -2153,12 +2247,62 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       
       // Tambahkan nomor tanggal sebagai header kolom (baris ke-4, indeks 3)
       for (int day = 1; day <= daysInMonth; day++) {
+        // Cek apakah hari ini libur
+        final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+        bool isLibur = _isHariLibur(date);
+        String? alasanLibur = _getAlasanLibur(date);
+        bool isLiburNasional = alasanLibur != null && alasanLibur.toLowerCase().contains('libur nasional');
+        bool isLiburAkhirPekan = isLibur && !isLiburNasional;
+        
+        // Set cell value dan style untuk nomor tanggal
         sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1)).value = TextCellValue('$day');
         final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1));
-        dayCell.cellStyle = CellStyle(
-          horizontalAlign: HorizontalAlign.Center,
-          verticalAlign: VerticalAlign.Center,
-        );
+        
+        // Style untuk header tanggal
+        if (isLiburNasional) {
+          // Libur nasional - background merah
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+            backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+            fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+          );
+          
+          // Tambahkan text vertikal untuk nama libur nasional
+          if (alasanLibur != null) {
+            // Ekstrak nama libur dari alasan
+            String namaLibur = alasanLibur.replaceAll('Libur Nasional: ', '').toUpperCase();
+            
+            // Tulis nama libur secara vertikal
+            for (int i = 0; i < namaLibur.length; i++) {
+              final charCell = sheet.cell(CellIndex.indexByColumnRow(
+                columnIndex: 2 + day, 
+                rowIndex: headerRowStart + 2 + i
+              ));
+              charCell.value = TextCellValue(namaLibur[i]);
+              charCell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+                fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+                bold: true,
+              );
+            }
+          }
+        } else if (isLiburAkhirPekan) {
+          // Libur akhir pekan - background hijau
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+            backgroundColorHex: ExcelColor.fromHexString('#00FF00'), // Warna hijau
+          );
+        } else {
+          // Hari normal
+          dayCell.cellStyle = CellStyle(
+            horizontalAlign: HorizontalAlign.Center,
+            verticalAlign: VerticalAlign.Center,
+          );
+        }
       }
 
       // Dapatkan data guru unik dari data absensi
@@ -2199,6 +2343,12 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           // Buat tanggal untuk pencarian data
           final date = DateTime(_selectedDate.year, _selectedDate.month, day);
           final formattedDate = DateFormat('yyyy-MM-dd').format(date);
+          
+          // Cek apakah hari ini libur
+          bool isLibur = _isHariLibur(date);
+          String? alasanLibur = _getAlasanLibur(date);
+          bool isLiburNasional = alasanLibur != null && alasanLibur.toLowerCase().contains('libur nasional');
+          bool isLiburAkhirPekan = isLibur && !isLiburNasional;
           
           // Cari data absensi untuk guru dan tanggal ini
           final absensiData = _filteredAbsensiData.where((absensi) => 
@@ -2269,10 +2419,27 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           // Style untuk cell absensi
           for (int r = 0; r < 3; r++) {
             final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex + r));
-            cell.cellStyle = CellStyle(
-              horizontalAlign: HorizontalAlign.Center,
-              verticalAlign: VerticalAlign.Center,
-            );
+            
+            // Tambahkan warna background sesuai status libur
+            if (isLiburNasional) {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#FF0000'), // Warna merah
+                fontColorHex: ExcelColor.fromHexString('#FFFFFF'), // Teks putih
+              );
+            } else if (isLiburAkhirPekan) {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+                backgroundColorHex: ExcelColor.fromHexString('#00FF00'), // Warna hijau
+              );
+            } else {
+              cell.cellStyle = CellStyle(
+                horizontalAlign: HorizontalAlign.Center,
+                verticalAlign: VerticalAlign.Center,
+              );
+            }
           }
         }
         
