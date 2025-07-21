@@ -856,18 +856,29 @@ class ApiService {
       }
       
       // Filter absensi berdasarkan guruId jika role adalah GURU
-      String endpoint = absensiEndpoint;
+      // Tambahkan parameter untuk pagination (limit tinggi untuk mengambil semua data)
+      final Map<String, String> queryParams = {
+        'limit': '1000', // Ambil hingga 1000 data untuk memastikan semua data ditampilkan
+      };
+      
+      // Tambahkan filter guruId jika role GURU
       if (user.role?.toUpperCase() == 'GURU' && user.guruId != null) {
-        endpoint += '?guruId=${user.guruId}';
+        queryParams['guruId'] = user.guruId!;
       }
       
+      // Buat URL dengan query parameters
+      final Uri uri = Uri.parse('$baseUrl$absensiEndpoint').replace(queryParameters: queryParams);
+      final endpoint = uri.toString();
+      
       final response = await _client.get(
-        Uri.parse('$baseUrl$endpoint'),
+        uri,
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+      
+      print('🌐 Fetch absensi dari: ${uri.toString()}');
 
       final responseData = jsonDecode(response.body);
       

@@ -55,14 +55,34 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    
+    // Tambahkan listener untuk reload data saat tab diubah
+    _tabController.addListener(_handleTabChange);
+    
     // Pastikan data dimuat segera setelah widget dibuat
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
   }
+  
+  // Variabel untuk mencatat tab terakhir
+  int _lastTabIndex = 0;
+  
+  // Handler untuk perubahan tab
+  void _handleTabChange() {
+    // Cek jika tab benar-benar berubah (bukan hanya animasi)
+    if (_tabController.index != _lastTabIndex && !_tabController.indexIsChanging) {
+      _lastTabIndex = _tabController.index;
+      
+      // Refresh data jika tab berubah
+      _loadData();
+    }
+  }
 
   @override
   void dispose() {
+    // Hapus listener sebelum dispose controller
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
   }
@@ -90,8 +110,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         _totalGuru = _allGuruData.length;
       });
       
-      // Ambil data absensi
-      final result = await _apiService.getAbsensiData();
+      // Ambil data absensi (dengan useCache: false untuk selalu mendapatkan data terbaru)
+      final result = await _apiService.getAbsensiData(useCache: false);
       if (!result['success']) {
         setState(() {
           _error = result['message'] ?? 'Gagal memuat data absensi';
@@ -100,8 +120,14 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         return;
       }
       
+      // Debug data absensi yang diterima
+      print('📅 Total data absensi dari server: ${(result['data'] as List).length}');
+      
       // Filter absensi berdasarkan bulan yang dipilih
       final filteredAbsensi = _filterAbsensiByMonth(result['data'] as List);
+      
+      // Debug hasil filter
+      print('📅 Total data absensi setelah filter bulan ${DateFormat('MMMM yyyy').format(_selectedDate)}: ${filteredAbsensi.length}');
       
       // Hitung statistik
       _calculateStatistics(filteredAbsensi);
@@ -123,12 +149,46 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   
   // Filter absensi berdasarkan bulan yang dipilih
   List<dynamic> _filterAbsensiByMonth(List<dynamic> data) {
-    final yearMonth = DateFormat('yyyy-MM').format(_selectedDate);
+    // Mendapatkan tanggal awal dan akhir bulan yang dipilih
+    final DateTime firstDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    final DateTime lastDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
     
-    return data.where((absen) {
+    // Format string untuk perbandingan
+    final firstDayStr = DateFormat('yyyy-MM-dd').format(firstDayOfMonth);
+    final lastDayStr = DateFormat('yyyy-MM-dd').format(lastDayOfMonth);
+    
+    final result = data.where((absen) {
       if (absen['tanggal'] == null) return false;
-      return absen['tanggal'].startsWith(yearMonth);
+      
+      // Verifikasi format tanggal dan bandingkan
+      try {
+        final absenDate = absen['tanggal'].toString();
+        // Bandingkan string tanggal untuk menentukan apakah dalam rentang bulan
+        return absenDate.compareTo(firstDayStr) >= 0 && absenDate.compareTo(lastDayStr) <= 0;
+      } catch (e) {
+        print('Error membandingkan tanggal: ${absen['tanggal']} - $e');
+        return false;
+      }
     }).toList();
+    
+    // Debug untuk membantu memverifikasi data yang difilter
+    if (result.isNotEmpty) {
+      // Ambil tanggal paling awal dan paling akhir dari hasil filter
+      final sortedByDate = List<dynamic>.from(result);
+      sortedByDate.sort((a, b) => (a['tanggal'] as String).compareTo((b['tanggal'] as String)));
+      
+      if (sortedByDate.isNotEmpty) {
+        final firstDate = sortedByDate.first['tanggal'];
+        final lastDate = sortedByDate.last['tanggal'];
+        print('📅 Rentang tanggal data absensi: $firstDate sampai $lastDate');
+        
+        // Hitung jumlah tanggal unik
+        final uniqueDates = sortedByDate.map((e) => e['tanggal']).toSet().length;
+        print('📅 Jumlah tanggal unik: $uniqueDates dari ${lastDayOfMonth.day} hari dalam bulan ini');
+      }
+    }
+    
+    return result;
   }
   
   // Filter absensi berdasarkan guru yang dipilih
@@ -337,13 +397,26 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Rekap Periode: ${DateFormat('MMMM yyyy').format(_selectedDate)}",
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                          Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Rekap Periode: ${DateFormat('MMMM yyyy').format(_selectedDate)}",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "1 - ${DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day} ${DateFormat('MMMM yyyy').format(_selectedDate)}",
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ),
-            ),
             const SizedBox(height: 20),
             
             // Ringkasan Utama
@@ -597,6 +670,9 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       );
     }
     
+    // Debug info
+    print('ℹ️ Total data absensi setelah filter: ${_filteredAbsensiData.length}');
+    
     // Kelompokkan absensi berdasarkan tanggal
     Map<String, List<dynamic>> groupedAbsensi = {};
     for (var absensi in _filteredAbsensiData) {
@@ -607,14 +683,37 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       groupedAbsensi[tanggal]!.add(absensi);
     }
     
+    // Debug info untuk grup
+    print('📊 Jumlah grup tanggal: ${groupedAbsensi.length}');
+    
     // Urutkan tanggal dari terbaru
     final sortedDates = groupedAbsensi.keys.toList()
       ..sort((a, b) => b.compareTo(a));
     
-    return ListView.builder(
-      itemCount: sortedDates.length,
+    // Pastikan tampil semua tanggal
+    print('📊 Total tanggal yang akan ditampilkan: ${sortedDates.length}');
+    
+    // Cek tanggal yang tidak memiliki data absensi
+    final missingDates = _getMissingDates(groupedAbsensi);
+    print('⚠️ Jumlah tanggal yang tidak ada data: ${missingDates.length}');
+    
+    // Gunakan ListView untuk menampilkan notifikasi dan daftar absensi
+    return ListView(
       padding: const EdgeInsets.all(8),
-      itemBuilder: (context, index) {
+      children: [
+        // Tampilkan notifikasi jika ada tanggal yang tidak memiliki data
+        _buildMissingDatesNotification(missingDates),
+        
+        // Daftar tanggal dengan data absensi
+        ListView.builder(
+          // Tidak ada batasan jumlah item
+          itemCount: sortedDates.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          // Pastikan semua item dirender
+          addAutomaticKeepAlives: false,
+          padding: EdgeInsets.zero,
+          itemBuilder: (context, index) {
         final tanggal = sortedDates[index];
         final absensiList = groupedAbsensi[tanggal]!;
         final formattedDate = DateFormat('EEEE, dd MMMM yyyy', 'id_ID')
@@ -623,51 +722,77 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         return Card(
           margin: const EdgeInsets.only(bottom: 12),
           elevation: 2,
+          clipBehavior: Clip.antiAlias, // Menghindari konten melebihi card
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
+          // Gunakan tata letak yang efisien untuk menghindari space kosong
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header tanggal
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.1),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(12),
-                    topRight: Radius.circular(12),
+                                Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(12),
+                        topRight: Radius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                formattedDate,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              // Tambahkan informasi hari dalam minggu
+                              Text(
+                                "${DateFormat('EEEE', 'id_ID').format(DateTime.parse(tanggal))}",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            "${absensiList.length} guru",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Theme.of(context).primaryColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.calendar_today, size: 16),
-                    const SizedBox(width: 8),
-                    Text(
-                      formattedDate,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      "${absensiList.length} guru",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               
               // Daftar absensi pada tanggal tersebut
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: absensiList.length,
-                itemBuilder: (context, idx) {
+              // Container dengan padding yang tepat
+              Container(
+                padding: const EdgeInsets.only(bottom: 4), // Padding bawah lebih kecil
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(absensiList.length, (idx) {
                   final absensi = absensiList[idx];
                   final status = absensi['status']?.toString().toLowerCase() ?? 'hadir';
                   
@@ -774,12 +899,15 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                       ),
                     ),
                   );
-                },
-              ),
+                }),
+                  ),
+                ),
             ],
           ),
         );
       },
+    ),
+      ],
     );
   }
   
@@ -1111,29 +1239,51 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             String jamMasuk = '';
             String jamKeluar = '';
             
-            // Format jam masuk
-      if (absensi['jamMasuk'] != null) {
-        try {
-          final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
-                jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
-        } catch (e) {
-                jamMasuk = '08:00';  // Default jika format tidak valid
+            // Format jam masuk dari database
+      if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
+        // Cek jika format jamMasuk sudah dalam format HH:mm
+        if (absensi['jamMasuk'].toString().contains(':')) {
+          jamMasuk = absensi['jamMasuk'].toString();
+          // Ambil hanya bagian HH:mm jika dalam format lengkap
+          if (jamMasuk.length > 5) {
+            jamMasuk = jamMasuk.substring(0, 5);
+          }
+        } else {
+          try {
+            // Jika masih dalam format ISO timestamp lengkap
+            final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
+            jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+          } catch (e) {
+            print('Error parsing jamMasuk: ${absensi['jamMasuk']} - $e');
+            jamMasuk = '';  // Kosongkan jika format tidak valid
+          }
         }
-            } else {
-              jamMasuk = '08:00';  // Default jika tidak ada data
+      } else {
+        jamMasuk = '';  // Kosongkan jika tidak ada data
       }
       
-            // Format jam keluar
-      if (absensi['jamKeluar'] != null) {
-        try {
-          final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
-                jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
-        } catch (e) {
-                jamKeluar = '10:00';  // Default jika format tidak valid
-              }
-            } else {
-              jamKeluar = '10:00';  // Default jika tidak ada data
-            }
+      // Format jam keluar dari database
+      if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
+        // Cek jika format jamKeluar sudah dalam format HH:mm
+        if (absensi['jamKeluar'].toString().contains(':')) {
+          jamKeluar = absensi['jamKeluar'].toString();
+          // Ambil hanya bagian HH:mm jika dalam format lengkap
+          if (jamKeluar.length > 5) {
+            jamKeluar = jamKeluar.substring(0, 5);
+          }
+        } else {
+          try {
+            // Jika masih dalam format ISO timestamp lengkap
+            final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
+            jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+          } catch (e) {
+            print('Error parsing jamKeluar: ${absensi['jamKeluar']} - $e');
+            jamKeluar = '';  // Kosongkan jika format tidak valid
+          }
+        }
+      } else {
+        jamKeluar = '';  // Kosongkan jika tidak ada data
+      }
             
             // Isi jam masuk dan keluar
             sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
@@ -1932,28 +2082,50 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             String jamMasuk = '';
             String jamKeluar = '';
             
-            // Format jam masuk
-            if (absensi['jamMasuk'] != null) {
-              try {
-                final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
-                jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
-              } catch (e) {
-                jamMasuk = '08:00';  // Default jika format tidak valid
+            // Format jam masuk dari database
+            if (absensi['jamMasuk'] != null && absensi['jamMasuk'].toString().isNotEmpty) {
+              // Cek jika format jamMasuk sudah dalam format HH:mm
+              if (absensi['jamMasuk'].toString().contains(':')) {
+                jamMasuk = absensi['jamMasuk'].toString();
+                // Ambil hanya bagian HH:mm jika dalam format lengkap
+                if (jamMasuk.length > 5) {
+                  jamMasuk = jamMasuk.substring(0, 5);
+                }
+              } else {
+                try {
+                  // Jika masih dalam format ISO timestamp lengkap
+                  final jamMasukDate = DateTime.parse(absensi['jamMasuk'].toString());
+                  jamMasuk = DateFormat('HH:mm').format(jamMasukDate);
+                } catch (e) {
+                  print('Error parsing jamMasuk (createExcel): ${absensi['jamMasuk']} - $e');
+                  jamMasuk = '';  // Kosongkan jika format tidak valid
+                }
               }
             } else {
-              jamMasuk = '08:00';  // Default jika tidak ada data
+              jamMasuk = '';  // Kosongkan jika tidak ada data
             }
             
-            // Format jam keluar
-            if (absensi['jamKeluar'] != null) {
-              try {
-                final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
-                jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
-              } catch (e) {
-                jamKeluar = '10:00';  // Default jika format tidak valid
+            // Format jam keluar dari database
+            if (absensi['jamKeluar'] != null && absensi['jamKeluar'].toString().isNotEmpty) {
+              // Cek jika format jamKeluar sudah dalam format HH:mm
+              if (absensi['jamKeluar'].toString().contains(':')) {
+                jamKeluar = absensi['jamKeluar'].toString();
+                // Ambil hanya bagian HH:mm jika dalam format lengkap
+                if (jamKeluar.length > 5) {
+                  jamKeluar = jamKeluar.substring(0, 5);
+                }
+              } else {
+                try {
+                  // Jika masih dalam format ISO timestamp lengkap
+                  final jamKeluarDate = DateTime.parse(absensi['jamKeluar'].toString());
+                  jamKeluar = DateFormat('HH:mm').format(jamKeluarDate);
+                } catch (e) {
+                  print('Error parsing jamKeluar (createExcel): ${absensi['jamKeluar']} - $e');
+                  jamKeluar = '';  // Kosongkan jika format tidak valid
+                }
               }
             } else {
-              jamKeluar = '10:00';  // Default jika tidak ada data
+              jamKeluar = '';  // Kosongkan jika tidak ada data
             }
             
             // Isi jam masuk dan keluar
@@ -2033,11 +2205,36 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             onPressed: _exportData,
             tooltip: 'Export',
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadData,
-            tooltip: 'Refresh',
-          ),
+          _isLoading
+            ? Container(
+                width: 48,
+                height: 48,
+                padding: const EdgeInsets.all(12),
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: () {
+                  // Tampilkan Flushbar untuk konfirmasi refresh data
+                  Flushbar(
+                    message: 'Memuat data terbaru...',
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: Colors.green,
+                    flushbarPosition: FlushbarPosition.TOP,
+                    icon: const Icon(
+                      Icons.refresh,
+                      color: Colors.white,
+                    ),
+                  ).show(context);
+                  
+                  // Refresh data
+                  _loadData();
+                },
+                tooltip: 'Refresh Data',
+              ),
         ],
       ),
       body: _isLoading
@@ -2125,7 +2322,31 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                         children: [
                           // Tab Statistik
                           RefreshIndicator(
-                            onRefresh: _loadData,
+                            onRefresh: () async {
+                              // Tampilkan feedback visual
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Memuat data absensi terbaru...'),
+                                    ],
+                                  ),
+                                  duration: Duration(milliseconds: 800),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              await _loadData(); // Selalu ambil data terbaru
+                              return Future.value();
+                            },
                             child: SingleChildScrollView(
                               physics: const AlwaysScrollableScrollPhysics(),
                               padding: const EdgeInsets.all(16),
@@ -2141,7 +2362,31 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                           
                           // Tab Daftar Absensi
                           RefreshIndicator(
-                            onRefresh: _loadData,
+                            onRefresh: () async {
+                              // Tampilkan feedback visual
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Memuat data absensi terbaru...'),
+                                    ],
+                                  ),
+                                  duration: Duration(milliseconds: 800),
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                              await _loadData(); // Selalu ambil data terbaru
+                              return Future.value();
+                            },
                             child: _buildAbsensiList(),
                           ),
                         ],
@@ -2149,6 +2394,71 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                     ),
                   ],
                 ),
+    );
+  }
+
+  // Mendapatkan tanggal-tanggal yang tidak memiliki data absensi
+  List<DateTime> _getMissingDates(Map<String, List<dynamic>> groupedAbsensi) {
+    final missingDates = <DateTime>[];
+    
+    // Dapatkan tanggal awal dan akhir bulan yang dipilih
+    final firstDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    final lastDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
+    
+    // Tanggal yang sudah memiliki data
+    final existingDates = groupedAbsensi.keys.map((dateStr) {
+      return DateTime.parse(dateStr);
+    }).toSet();
+    
+    // Cek setiap tanggal dalam bulan
+    for (int day = 1; day <= lastDayOfMonth.day; day++) {
+      final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+      if (!existingDates.any((existingDate) => 
+        existingDate.year == date.year && 
+        existingDate.month == date.month && 
+        existingDate.day == date.day)) {
+        missingDates.add(date);
+      }
+    }
+    
+    return missingDates;
+  }
+
+  // Widget untuk menampilkan notifikasi tanggal yang tidak memiliki data
+  Widget _buildMissingDatesNotification(List<DateTime> missingDates) {
+    if (missingDates.isEmpty) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.amber.withOpacity(0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.info_outline, color: Colors.amber),
+              const SizedBox(width: 8),
+              Text(
+                '${missingDates.length} hari tidak memiliki data absensi',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amber,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tanggal ${missingDates.take(5).map((date) => DateFormat('d').format(date)).join(', ')}${missingDates.length > 5 ? ', dan ${missingDates.length - 5} tanggal lainnya' : ''} tidak memiliki data absensi di bulan ini.',
+            style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+          ),
+        ],
+      ),
     );
   }
 } 
