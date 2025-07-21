@@ -8,6 +8,9 @@ import '../models/guru_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import 'package:another_flushbar/flushbar.dart';
+import '../models/pengaturan_libur_model.dart';
+import '../utils/libur_helper.dart';
+import 'pengaturan_libur_screen.dart';
 
 class AbsensiAdminScreen extends StatefulWidget {
   const AbsensiAdminScreen({Key? key}) : super(key: key);
@@ -24,6 +27,12 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
   Map<String, String?> _absenStatus = {}; // idGuru: status
   Map<String, String?> _jamPulang = {}; // idGuru: jamKeluar
   bool _isSubmitting = false;
+  
+  // Data libur
+  PengaturanLiburAkhirPekan? _akhirPekan;
+  List<LiburNasional> _liburNasional = [];
+  bool _isHariLibur = false;
+  String? _alasanLibur;
   
   // Tambahkan tanggal yang dipilih
   DateTime _selectedDate = DateTime.now();
@@ -47,7 +56,10 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     });
     
     try {
-      // Ambil data guru terlebih dahulu
+      // Ambil data pengaturan libur terlebih dahulu
+      await _loadLiburSettings();
+      
+      // Ambil data guru
       final resultGuru = await _apiService.getGuruData();
       
       if (resultGuru['success']) {
@@ -169,6 +181,22 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
   }
 
   Future<void> _absenGuru(String guruId, String status, {bool showNotif = true, DateTime? customTime}) async {
+    // Cek apakah hari ini libur jika dipanggil langsung
+    if (_isHariLibur && showNotif) {
+      Flushbar(
+        message: 'Tidak dapat melakukan absen pada hari libur: $_alasanLibur',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+      )..show(context);
+      return;
+    }
+    
     setState(() {
       _isSubmitting = true;
     });
@@ -310,6 +338,22 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
   }
 
   Future<void> _absenSemua(String status, {DateTime? customTime}) async {
+    // Cek apakah hari ini libur
+    if (_isHariLibur) {
+      Flushbar(
+        message: 'Tidak dapat melakukan absen pada hari libur: $_alasanLibur',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+      )..show(context);
+      return;
+    }
+    
     setState(() {
       _isSubmitting = true;
     });
@@ -380,6 +424,22 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
   }
 
   Future<void> _absenPulangSemua({DateTime? customTime}) async {
+    // Cek apakah hari ini libur
+    if (_isHariLibur) {
+      Flushbar(
+        message: 'Tidak dapat melakukan absen pada hari libur: $_alasanLibur',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+      )..show(context);
+      return;
+    }
+    
     setState(() {
       _isSubmitting = true;
     });
@@ -477,11 +537,36 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
       setState(() {
         _selectedDate = picked;
       });
-      _fetchAbsensiByDate();
+      
+      // Cek dulu apakah tanggal yang dipilih adalah hari libur
+      _loadLiburSettings().then((_) {
+        setState(() {
+          // Update isHariLibur setelah loading settings
+          _checkHariLibur();
+        });
+        // Baru ambil data absensi
+        _fetchAbsensiByDate();
+      });
     }
   }
   
   Future<void> _absenPulangGuru(String guruId, {bool showNotif = true, DateTime? customTime}) async {
+    // Cek apakah hari ini libur jika dipanggil langsung
+    if (_isHariLibur && showNotif) {
+      Flushbar(
+        message: 'Tidak dapat melakukan absen pada hari libur: $_alasanLibur',
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        flushbarPosition: FlushbarPosition.TOP,
+        borderRadius: BorderRadius.circular(12),
+        margin: const EdgeInsets.all(16),
+        icon: const Icon(Icons.error, color: Colors.white),
+        shouldIconPulse: false,
+        isDismissible: true,
+      )..show(context);
+      return;
+    }
+    
     setState(() {
       _isSubmitting = true;
     });
@@ -698,6 +783,39 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     }
   }
 
+  // Cek apakah hari ini adalah hari libur
+  void _checkHariLibur() {
+    _isHariLibur = LiburHelper.isHariLibur(_selectedDate, _akhirPekan, _liburNasional);
+    _alasanLibur = LiburHelper.getAlasanLibur(_selectedDate, _akhirPekan, _liburNasional);
+  }
+  
+  Future<void> _loadLiburSettings() async {
+    try {
+      // Ambil data pengaturan hari libur
+      final akhirPekanResult = await _apiService.getAkhirPekanSettings();
+      if (akhirPekanResult['success']) {
+        setState(() {
+          _akhirPekan = PengaturanLiburAkhirPekan.fromJson(akhirPekanResult['data']);
+        });
+      }
+      
+      // Ambil data libur nasional
+      final liburNasionalResult = await _apiService.getLiburNasional();
+      if (liburNasionalResult['success']) {
+        setState(() {
+          _liburNasional = (liburNasionalResult['data'] as List)
+              .map((item) => LiburNasional.fromJson(item))
+              .toList();
+        });
+      }
+      
+      // Cek apakah tanggal yang dipilih adalah hari libur
+      _checkHariLibur();
+    } catch (e) {
+      print('Error loading libur settings: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context); // Diperlukan untuk AutomaticKeepAliveClientMixin
@@ -736,6 +854,9 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
     } else {
       content = Column(
         children: [
+          // Tampilkan peringatan jika hari libur
+          _buildHariLiburWarning(),
+          
           // Date picker dan status cards
           Card(
             margin: const EdgeInsets.all(16),
@@ -803,15 +924,17 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                   children: [
                     Expanded(
                       child: GestureDetector(
-                        onLongPress: _isSubmitting ? null : _handleHadirSemuaLongPress,
+                        onLongPress: (_isHariLibur || _isSubmitting) ? null : _handleHadirSemuaLongPress,
                         child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ? null : () => _absenSemua('HADIR'),
+                          onPressed: (_isHariLibur || _isSubmitting) ? null : () => _absenSemua('HADIR'),
                           icon: const Icon(Icons.check_circle, size: 20),
                           label: const Text('Hadir Semua'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            disabledForegroundColor: Colors.grey.shade600,
                           ),
                         ),
                       ),
@@ -819,15 +942,17 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                     const SizedBox(width: 12),
                     Expanded(
                       child: GestureDetector(
-                        onLongPress: _isSubmitting ? null : _handlePulangSemuaLongPress,
+                        onLongPress: (_isHariLibur || _isSubmitting) ? null : _handlePulangSemuaLongPress,
                         child: ElevatedButton.icon(
-                          onPressed: _isSubmitting ? null : _absenPulangSemua,
+                          onPressed: (_isHariLibur || _isSubmitting) ? null : _absenPulangSemua,
                           icon: const Icon(Icons.logout, size: 20),
                           label: const Text('Pulang Semua'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            disabledForegroundColor: Colors.grey.shade600,
                           ),
                         ),
                       ),
@@ -906,7 +1031,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                                 label: 'Pulang',
                                                 color: Colors.blue,
                                                 selected: _jamPulang[guru.id] != null && _jamPulang[guru.id]!.isNotEmpty,
-                                                onTap: _isSubmitting ? null : () => _absenPulangGuru(guru.id),
+                                                onTap: (_isHariLibur || _isSubmitting) ? null : () => _absenPulangGuru(guru.id),
                                               ),
                                             ),
                                           ],
@@ -988,7 +1113,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                         label: 'Hadir',
                                         color: Colors.green,
                                         selected: status == 'HADIR',
-                                        onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'HADIR'),
+                                        onTap: (_isHariLibur || _isSubmitting) ? null : () => _absenGuru(guru.id, 'HADIR'),
                                       ),
                                     ),
                                   ),
@@ -997,7 +1122,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                       label: 'Izin',
                                       color: Colors.orange,
                                       selected: status == 'IZIN',
-                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'IZIN'),
+                                      onTap: (_isHariLibur || _isSubmitting) ? null : () => _absenGuru(guru.id, 'IZIN'),
                                     ),
                                   ),
                                   Expanded(
@@ -1005,7 +1130,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                       label: 'Sakit',
                                       color: Colors.blue,
                                       selected: status == 'SAKIT',
-                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'SAKIT'),
+                                      onTap: (_isHariLibur || _isSubmitting) ? null : () => _absenGuru(guru.id, 'SAKIT'),
                                     ),
                                   ),
                                   Expanded(
@@ -1013,7 +1138,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                                       label: 'Alpa',
                                       color: Colors.red,
                                       selected: status == 'ALPHA',
-                                      onTap: _isSubmitting ? null : () => _absenGuru(guru.id, 'ALPHA'),
+                                      onTap: (_isHariLibur || _isSubmitting) ? null : () => _absenGuru(guru.id, 'ALPHA'),
                                     ),
                                   ),
                                 ],
@@ -1034,6 +1159,36 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         title: const Text('Absensi Guru'),
         centerTitle: false,
         actions: [
+          // Tombol Pengaturan Akhir Pekan
+          IconButton(
+            icon: const Icon(Icons.weekend),
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(
+                  builder: (context) => const PengaturanLiburScreen(
+                    initialTabIndex: 0, // Tab Akhir Pekan
+                  ),
+                )
+              ).then((_) => _loadData());
+            },
+            tooltip: 'Atur Akhir Pekan',
+          ),
+          // Tombol Pengaturan Libur Nasional
+          IconButton(
+            icon: const Icon(Icons.event_note),
+            onPressed: () {
+              Navigator.push(
+                context, 
+                MaterialPageRoute(
+                  builder: (context) => const PengaturanLiburScreen(
+                    initialTabIndex: 1, // Tab Libur Nasional
+                  ),
+                )
+              ).then((_) => _loadData());
+            },
+            tooltip: 'Atur Libur Nasional',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
@@ -1099,6 +1254,47 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
       default:
         return Colors.grey;
     }
+  }
+
+  // Widget untuk menampilkan peringatan hari libur
+  Widget _buildHariLiburWarning() {
+    if (!_isHariLibur) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.red),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Hari Libur: $_alasanLibur',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pada hari libur, guru tidak dapat melakukan absensi. Silakan pilih tanggal lain.',
+            style: TextStyle(color: Colors.red.shade700),
+          ),
+        ],
+      ),
+    );
   }
 }
 

@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'pengaturan_gaji_screen.dart';
 import 'manajemen_guru_screen.dart';
+import '../utils/connection_checker.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -70,6 +71,9 @@ class ProfileScreen extends StatelessWidget {
                                   );
                                 } else if (value == 2) {
                                   // Aksi untuk menu lain, misal tentang aplikasi
+                                } else if (value == 3) {
+                                  // Cek koneksi server
+                                  ConnectionChecker.showConnectionCheckDialog(context);
                                 }
                               },
                               itemBuilder: (context) => [
@@ -91,6 +95,16 @@ class ProfileScreen extends StatelessWidget {
                                       Icon(Icons.info_outline, color: Colors.grey),
                                       SizedBox(width: 8),
                                       Text('Tentang Aplikasi'),
+                                    ],
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: 3,
+                                  child: Row(
+                                    children: const [
+                                      Icon(Icons.wifi_tethering, color: Colors.green),
+                                      SizedBox(width: 8),
+                                      Text('Cek Koneksi Server'),
                                     ],
                                   ),
                                 ),

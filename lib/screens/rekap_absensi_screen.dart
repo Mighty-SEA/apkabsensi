@@ -17,6 +17,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/saf_helper.dart';
 import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
+import '../models/pengaturan_libur_model.dart';
+import '../utils/libur_helper.dart';
 
 class RekapAbsensiScreen extends StatefulWidget {
   const RekapAbsensiScreen({Key? key}) : super(key: key);
@@ -40,6 +42,10 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   // Data filter
   DateTime _selectedDate = DateTime.now();
   String? _selectedGuruId;
+  
+  // Data libur
+  PengaturanLiburAkhirPekan? _akhirPekan;
+  List<LiburNasional> _liburNasional = [];
   
   // Data statistik
   int _totalHadir = 0;
@@ -109,6 +115,24 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         _allGuruData = (guruResult['data'] as List).map((e) => Guru.fromJson(e)).toList();
         _totalGuru = _allGuruData.length;
       });
+      
+      // Ambil data pengaturan hari libur
+      final akhirPekanResult = await _apiService.getAkhirPekanSettings();
+      if (akhirPekanResult['success']) {
+        setState(() {
+          _akhirPekan = PengaturanLiburAkhirPekan.fromJson(akhirPekanResult['data']);
+        });
+      }
+      
+      // Ambil data libur nasional
+      final liburNasionalResult = await _apiService.getLiburNasional();
+      if (liburNasionalResult['success']) {
+        setState(() {
+          _liburNasional = (liburNasionalResult['data'] as List)
+              .map((item) => LiburNasional.fromJson(item))
+              .toList();
+        });
+      }
       
       // Ambil data absensi (dengan useCache: false untuk selalu mendapatkan data terbaru)
       final result = await _apiService.getAbsensiData(useCache: false);
@@ -704,6 +728,9 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         // Tampilkan notifikasi jika ada tanggal yang tidak memiliki data
         _buildMissingDatesNotification(missingDates),
         
+        // Tampilkan daftar hari libur pada bulan ini
+        _buildLiburList(),
+        
         // Daftar tanggal dengan data absensi
         ListView.builder(
           // Tidak ada batasan jumlah item
@@ -1159,30 +1186,82 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Jumlah hari dalam bulan yang dipilih
       final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
       
+      // Tambahkan judul di bagian atas
+      final headerRowStart = 3; // Mulai header dari baris ke-3 (indeks 2)
+      
+      // Nama bulan dalam bahasa Indonesia
+      final bulanList = [
+        'JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI',
+        'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'
+      ];
+      final namaBulan = bulanList[_selectedDate.month - 1];
+      
+      // Judul: DAFTAR HADIR GURU DAN TU (OPERATOR)
+      final judulCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+      judulCell.value = TextCellValue('DAFTAR HADIR GURU DAN TU (OPERATOR)');
+      judulCell.cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+        fontSize: 14
+      );
+      
+      // Merge cell untuk judul agar mencakup seluruh tabel
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
+      
+      // Baris kedua: BULAN dan Tahun
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = TextCellValue('BULAN :');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).value = TextCellValue(namaBulan);
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).value = TextCellValue('Tahun');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).value = TextCellValue('${_selectedDate.year}');
+      
+      // Format style untuk baris informasi bulan dan tahun
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
       // Tambahkan header
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('NO');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = TextCellValue('NAMA');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = TextCellValue('');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: headerRowStart)).value = TextCellValue('NO');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: headerRowStart)).value = TextCellValue('NAMA');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: headerRowStart)).value = TextCellValue('');
       
       // Merge cell untuk header "TANGGAL"
-      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0), 
-                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = TextCellValue('TANGGAL');
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: headerRowStart), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: headerRowStart));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: headerRowStart)).value = TextCellValue('TANGGAL');
       
       // Format header dengan style
       for (int i = 0; i <= 3 + daysInMonth - 1; i++) {
-        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRowStart));
         headerCell.cellStyle = CellStyle(
-      bold: true,
-      horizontalAlign: HorizontalAlign.Center,
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
         );
       }
       
       // Tambahkan nomor tanggal sebagai header kolom
       for (int day = 1; day <= daysInMonth; day++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1)).value = TextCellValue('$day');
-        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1)).value = TextCellValue('$day');
+        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1));
         dayCell.cellStyle = CellStyle(
           horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
@@ -1192,8 +1271,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Dapatkan data guru unik dari data absensi
       final List<Guru> guruList = _allGuruData.toList();
       
-      // Mulai dari baris 2 untuk data guru
-      int rowIndex = 2;
+      // Mulai dari baris setelah header dan nomor hari (baris ke-5, indeks 4)
+      int rowIndex = headerRowStart + 2;
       for (int i = 0; i < guruList.length; i++) {
         final guru = guruList[i];
         
@@ -2002,19 +2081,51 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Jumlah hari dalam bulan yang dipilih
       final daysInMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
       
-      // Tambahkan header
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue('NO');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 0)).value = TextCellValue('NAMA');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0)).value = TextCellValue('');
+      // Tambahkan judul di bagian atas
+      // Geser konten 3 baris ke bawah untuk menambahkan judul dan informasi bulan/tahun
+      final headerRowStart = 3; // Mulai header dari baris ke-3 (indeks 2)
+      
+      // Nama bulan dalam bahasa Indonesia
+      final bulanList = [
+        'JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI',
+        'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'
+      ];
+      final namaBulan = bulanList[_selectedDate.month - 1];
+      
+      // Judul: DAFTAR HADIR GURU DAN TU (OPERATOR)
+      final judulCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+      judulCell.value = TextCellValue('DAFTAR HADIR GURU DAN TU (OPERATOR)');
+      judulCell.cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+        fontSize: 14
+      );
+      
+      // Merge cell untuk judul agar mencakup seluruh tabel
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
+      
+      // Baris kedua: BULAN dan Tahun
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = TextCellValue('BULAN :');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).value = TextCellValue(namaBulan);
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).value = TextCellValue('Tahun');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).value = TextCellValue('${_selectedDate.year}');
+      
+      // Tambahkan header utama pada baris ke-3 (setelah judul)
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: headerRowStart)).value = TextCellValue('NO');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: headerRowStart)).value = TextCellValue('NAMA');
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: headerRowStart)).value = TextCellValue('');
       
       // Merge cell untuk header "TANGGAL"
-      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0), 
-                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: 0));
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0)).value = TextCellValue('TANGGAL');
+      sheet.merge(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: headerRowStart), 
+                 CellIndex.indexByColumnRow(columnIndex: 3 + daysInMonth - 1, rowIndex: headerRowStart));
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: headerRowStart)).value = TextCellValue('TANGGAL');
       
       // Format header dengan style
       for (int i = 0; i <= 3 + daysInMonth - 1; i++) {
-        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0));
+        final headerCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: headerRowStart));
         headerCell.cellStyle = CellStyle(
           bold: true,
           horizontalAlign: HorizontalAlign.Center,
@@ -2022,10 +2133,31 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         );
       }
       
-      // Tambahkan nomor tanggal sebagai header kolom
+      // Format style untuk baris informasi bulan dan tahun
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1)).cellStyle = CellStyle(
+        bold: true,
+        horizontalAlign: HorizontalAlign.Left,
+      );
+      
+      // Tambahkan nomor tanggal sebagai header kolom (baris ke-4, indeks 3)
       for (int day = 1; day <= daysInMonth; day++) {
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1)).value = TextCellValue('$day');
-        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: 1));
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1)).value = TextCellValue('$day');
+        final dayCell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2 + day, rowIndex: headerRowStart + 1));
         dayCell.cellStyle = CellStyle(
           horizontalAlign: HorizontalAlign.Center,
           verticalAlign: VerticalAlign.Center,
@@ -2035,8 +2167,8 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Dapatkan data guru unik dari data absensi
       final List<Guru> guruList = _allGuruData.toList();
       
-      // Mulai dari baris 2 untuk data guru
-      int rowIndex = 2;
+      // Mulai dari baris setelah header dan nomor hari (baris ke-5, indeks 4)
+      int rowIndex = headerRowStart + 2;
       for (int i = 0; i < guruList.length; i++) {
         final guru = guruList[i];
         
@@ -2413,6 +2545,11 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
     // Cek setiap tanggal dalam bulan
     for (int day = 1; day <= lastDayOfMonth.day; day++) {
       final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+      // Skip hari libur dari pengecekan tanggal yang hilang
+      if (_isHariLibur(date)) {
+        continue; // Tanggal ini libur, tidak perlu dicek
+      }
+      
       if (!existingDates.any((existingDate) => 
         existingDate.year == date.year && 
         existingDate.month == date.month && 
@@ -2422,6 +2559,28 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
     }
     
     return missingDates;
+  }
+  
+  // Mendapatkan daftar hari libur dalam bulan ini
+  List<Map<String, dynamic>> _getHariLiburBulanIni() {
+    final result = <Map<String, dynamic>>[];
+    
+    // Dapatkan tanggal awal dan akhir bulan yang dipilih
+    final firstDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month, 1);
+    final lastDayOfMonth = DateTime(_selectedDate.year, _selectedDate.month + 1, 0);
+    
+    // Cek setiap tanggal dalam bulan
+    for (int day = 1; day <= lastDayOfMonth.day; day++) {
+      final date = DateTime(_selectedDate.year, _selectedDate.month, day);
+      if (_isHariLibur(date)) {
+        result.add({
+          'tanggal': date,
+          'alasan': _getAlasanLibur(date) ?? 'Hari Libur',
+        });
+      }
+    }
+    
+    return result;
   }
 
   // Widget untuk menampilkan notifikasi tanggal yang tidak memiliki data
@@ -2456,6 +2615,108 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           Text(
             'Tanggal ${missingDates.take(5).map((date) => DateFormat('d').format(date)).join(', ')}${missingDates.length > 5 ? ', dan ${missingDates.length - 5} tanggal lainnya' : ''} tidak memiliki data absensi di bulan ini.',
             style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Cek apakah tanggal tertentu adalah hari libur
+  bool _isHariLibur(DateTime date) {
+    return LiburHelper.isHariLibur(date, _akhirPekan, _liburNasional);
+  }
+  
+  // Mendapatkan alasan libur untuk tanggal tertentu
+  String? _getAlasanLibur(DateTime date) {
+    return LiburHelper.getAlasanLibur(date, _akhirPekan, _liburNasional);
+  }
+
+  // Widget untuk menampilkan daftar hari libur
+  Widget _buildLiburList() {
+    final hariLibur = _getHariLiburBulanIni();
+    
+    if (hariLibur.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_busy, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                '${hariLibur.length} Hari Libur pada bulan ini',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          
+          // List hari libur
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: hariLibur.length,
+            itemBuilder: (context, index) {
+              final libur = hariLibur[index];
+              final tanggal = libur['tanggal'] as DateTime;
+              final alasan = libur['alasan'] as String;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        tanggal.day.toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${LiburHelper.getTanggalLengkap(tanggal)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        Text(
+                          alasan,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),

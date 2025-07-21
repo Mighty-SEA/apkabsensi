@@ -18,6 +18,8 @@ class ApiService {
   // Gunakan 192.168.x.x atau alamat IP komputer Anda untuk perangkat fisik
   // static const String baseUrl = 'https://absensi.mdtbilal.sch.id/api';
   static const String baseUrl = 'http://localhost:3000/api';
+    
+  // PENTING: Sesuaikan IP address dengan IP server backend Anda!
   // Flag untuk menggunakan mock data jika server tidak tersedia
   static const bool useMockData = false;
   
@@ -30,6 +32,10 @@ class ApiService {
   static const String absensiCheckoutEndpoint = '/absensi/checkout';
   static const String pengaturanGajiEndpoint = '/pengaturan-gaji';
   static const String gajiGuruEndpoint = '/gaji';
+  
+  // Endpoint untuk pengaturan libur
+  static const String akhirPekanEndpoint = '/pengaturan/akhir-pekan';
+  static const String liburNasionalEndpoint = '/pengaturan/libur-nasional';
 
   // Timeout dan jumlah retry
   static const Duration _requestTimeout = Duration(seconds: 15);
@@ -244,6 +250,10 @@ class ApiService {
       };
     }
   }
+  
+  // Memeriksa status API
+  // Fungsi ini tidak digunakan, lihat implementasi di bawah
+  // Dihapus untuk menghindari duplikasi
 
   // Login
   Future<Map<String, dynamic>> login(String username, String password) async {
@@ -355,23 +365,68 @@ class ApiService {
     if (!await hasInternetConnection()) {
       return {'success': false, 'message': 'Tidak ada koneksi internet'};
     }
+    
     try {
+      _logger.d('Checking API status');
+      
       final response = await _client.get(
         Uri.parse(baseUrl),
       ).timeout(_requestTimeout);
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // Cek apakah sesuai format yang diharapkan
-        if (data['status'] == 'ok' && data['message'] == 'API Absensi Backend aktif') {
-          return {'success': true, 'data': data};
-        } else {
-          return {'success': false, 'message': 'Format respons tidak sesuai', 'data': data};
+      
+      final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+      
+      String statusMessage;
+      if (isSuccess) {
+        try {
+          final data = jsonDecode(response.body);
+          
+          // Cek apakah sesuai format yang diharapkan
+          if (data['status'] == 'ok' && data['message'] == 'API Absensi Backend aktif') {
+            statusMessage = data['message'] ?? 'API Online';
+            return {
+              'success': true,
+              'message': statusMessage,
+              'data': data,
+              'statusCode': response.statusCode
+            };
+          } else {
+            statusMessage = 'API Online (Format respons tidak valid)';
+            return {
+              'success': true,
+              'message': statusMessage,
+              'data': data,
+              'statusCode': response.statusCode
+            };
+          }
+        } catch (e) {
+          statusMessage = 'API Online (Format respons tidak valid)';
+          return {
+            'success': true,
+            'message': statusMessage,
+            'statusCode': response.statusCode
+          };
         }
       } else {
-        return {'success': false, 'message': 'Status code:  [${response.statusCode}]', 'data': response.body};
+        statusMessage = 'API Error (Kode: ${response.statusCode})';
+        return {
+          'success': false,
+          'message': statusMessage,
+          'statusCode': response.statusCode
+        };
       }
     } catch (e) {
-      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+      _logger.e('Error checking API status: $e');
+      String errorMessage = 'Tidak dapat terhubung ke API';
+      if (e is SocketException) {
+        errorMessage = 'API tidak dapat dijangkau';
+      } else if (e is TimeoutException) {
+        errorMessage = 'Koneksi ke API timeout';
+      }
+      return {
+        'success': false, 
+        'message': errorMessage,
+        'error': e.toString()
+      };
     }
   }
 
@@ -1885,6 +1940,311 @@ class ApiService {
       }
     } catch (e) {
       _logger.e('Error marking salary as paid: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // ===== PENGATURAN LIBUR =====
+  
+  // Mendapatkan pengaturan libur akhir pekan
+  Future<Map<String, dynamic>> getAkhirPekanSettings() async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        // Default setting: Sabtu dan Minggu libur
+        return {
+          'success': true,
+          'data': {
+            'senin': false,
+            'selasa': false,
+            'rabu': false,
+            'kamis': false,
+            'jumat': false,
+            'sabtu': true,
+            'minggu': true,
+          }
+        };
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl$akhirPekanEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        // Jika endpoint belum tersedia atau tidak ada data, return default
+        if (response.statusCode == 404) {
+          return {
+            'success': true,
+            'data': {
+              'senin': false,
+              'selasa': false,
+              'rabu': false,
+              'kamis': false,
+              'jumat': false,
+              'sabtu': true,
+              'minggu': true,
+            }
+          };
+        }
+        
+        return {
+          'success': false,
+          'message': 'Gagal memuat pengaturan akhir pekan: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching weekend settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Menyimpan pengaturan libur akhir pekan
+  Future<Map<String, dynamic>> saveAkhirPekanSettings(Map<String, dynamic> settings) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        return {'success': true, 'data': settings};
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$akhirPekanEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(settings),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data']};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menyimpan pengaturan akhir pekan: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error saving weekend settings: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Mendapatkan daftar libur nasional
+  Future<Map<String, dynamic>> getLiburNasional() async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        final now = DateTime.now();
+        final thisYear = now.year;
+        
+        // Contoh data libur nasional
+        return {
+          'success': true,
+          'data': [
+            {
+              'id': '1',
+              'nama': 'Hari Kemerdekaan',
+              'tanggalMulai': DateTime(thisYear, 8, 17).toIso8601String(),
+              'tanggalSelesai': DateTime(thisYear, 8, 17).toIso8601String(),
+              'keterangan': 'HUT RI'
+            },
+            {
+              'id': '2',
+              'nama': 'Tahun Baru',
+              'tanggalMulai': DateTime(thisYear, 1, 1).toIso8601String(),
+              'tanggalSelesai': DateTime(thisYear, 1, 1).toIso8601String(),
+              'keterangan': ''
+            }
+          ]
+        };
+      }
+
+      final response = await _client.get(
+        Uri.parse('$baseUrl$liburNasionalEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return {'success': true, 'data': data['data'] ?? []};
+      } else {
+        // Jika endpoint belum tersedia, berikan array kosong
+        if (response.statusCode == 404) {
+          return {'success': true, 'data': []};
+        }
+        
+        return {
+          'success': false,
+          'message': 'Gagal memuat data libur nasional: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error fetching national holidays: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Menambah libur nasional baru
+  Future<Map<String, dynamic>> addLiburNasional(Map<String, dynamic> data) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        return {
+          'success': true,
+          'data': {
+            'id': DateTime.now().millisecondsSinceEpoch.toString(),
+            ...data
+          }
+        };
+      }
+
+      final response = await _client.post(
+        Uri.parse('$baseUrl$liburNasionalEndpoint'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        return {'success': true, 'data': responseData['data']};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menambahkan libur nasional: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error adding national holiday: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Mengupdate libur nasional
+  Future<Map<String, dynamic>> updateLiburNasional(String id, Map<String, dynamic> data) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        return {'success': true, 'data': {...data, 'id': id}};
+      }
+
+      final response = await _client.put(
+        Uri.parse('$baseUrl$liburNasionalEndpoint/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(data),
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return {'success': true, 'data': responseData['data']};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal mengupdate libur nasional: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error updating national holiday: $e');
+      return {'success': false, 'message': 'Terjadi kesalahan: $e'};
+    }
+  }
+
+  // Menghapus libur nasional
+  Future<Map<String, dynamic>> deleteLiburNasional(String id) async {
+    try {
+      if (!await hasInternetConnection()) {
+        return {'success': false, 'message': 'Tidak ada koneksi internet'};
+      }
+
+      final token = await getToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Token tidak tersedia'};
+      }
+
+      // Jika menggunakan mock data
+      if (useMockData) {
+        return {'success': true, 'message': 'Libur nasional berhasil dihapus'};
+      }
+
+      final response = await _client.delete(
+        Uri.parse('$baseUrl$liburNasionalEndpoint/$id'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      ).timeout(_requestTimeout);
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return {'success': true, 'message': 'Libur nasional berhasil dihapus'};
+      } else {
+        return {
+          'success': false,
+          'message': 'Gagal menghapus libur nasional: ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      _logger.e('Error deleting national holiday: $e');
       return {'success': false, 'message': 'Terjadi kesalahan: $e'};
     }
   }
