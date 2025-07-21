@@ -60,7 +60,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     
     // Tambahkan listener untuk reload data saat tab diubah
     _tabController.addListener(_handleTabChange);
@@ -727,9 +727,6 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       children: [
         // Tampilkan notifikasi jika ada tanggal yang tidak memiliki data
         _buildMissingDatesNotification(missingDates),
-        
-        // Tampilkan daftar hari libur pada bulan ini
-        _buildLiburList(),
         
         // Daftar tanggal dengan data absensi
         ListView.builder(
@@ -2440,6 +2437,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                       tabs: const [
                         Tab(text: 'Statistik'),
                         Tab(text: 'Daftar Absensi'),
+                        Tab(text: 'Daftar Libur'), // Tambah tab baru
                       ],
                       labelColor: Theme.of(context).primaryColor,
                       unselectedLabelColor: Colors.grey,
@@ -2520,6 +2518,18 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                               return Future.value();
                             },
                             child: _buildAbsensiList(),
+                          ),
+                          // Tab Daftar Libur
+                          RefreshIndicator(
+                            onRefresh: () async {
+                              await _loadData();
+                              return Future.value();
+                            },
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(16),
+                              child: _buildLiburList(),
+                            ),
                           ),
                         ],
                       ),
@@ -2635,8 +2645,163 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
   Widget _buildLiburList() {
     final hariLibur = _getHariLiburBulanIni();
     
+    // Log isi hariLibur
+    print('DEBUG: hariLibur = ' + hariLibur.toString());
+    for (var libur in hariLibur) {
+      print('DEBUG: tanggal = ' + libur['tanggal'].toString() + ', alasan = ' + libur['alasan'].toString() + ', tipe alasan = ' + libur['alasan'].runtimeType.toString());
+    }
     if (hariLibur.isEmpty) {
       return const SizedBox.shrink();
+    }
+    
+    // Buat map tanggal -> alasan
+    final Map<int, String> tanggalLibur = {};
+    for (var libur in hariLibur) {
+      tanggalLibur[libur['tanggal'].day] = libur['alasan'].toString();
+    }
+    
+    // Card kalender
+    Widget calendarCard() {
+      final now = _selectedDate;
+      final firstDayOfMonth = DateTime(now.year, now.month, 1);
+      final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+      final daysInMonth = lastDayOfMonth.day;
+      final firstWeekday = firstDayOfMonth.weekday; // 1=Senin, 7=Minggu
+      final List<String> hari = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+
+      List<Widget> dayHeaders = hari.map((h) => Expanded(child: Center(child: Text(h, style: const TextStyle(fontWeight: FontWeight.bold))))).toList();
+
+      List<Widget> dayCells = [];
+      // Kosongkan cell sebelum tanggal 1
+      for (int i = 1; i < firstWeekday; i++) {
+        dayCells.add(const Expanded(child: SizedBox()));
+      }
+      for (int day = 1; day <= daysInMonth; day++) {
+        Color bgColor = Colors.white;
+        Color textColor = Colors.black;
+        String alasan = tanggalLibur[day] ?? '';
+        bool isToday = now.year == DateTime.now().year && now.month == DateTime.now().month && day == DateTime.now().day;
+        bool isLiburNasional = alasan.toLowerCase().contains('libur nasional');
+        bool isLiburAkhirPekan = alasan.isNotEmpty && !isLiburNasional;
+        if (isLiburNasional) {
+          bgColor = Colors.red.shade100;
+          textColor = Colors.red.shade800;
+        } else if (isLiburAkhirPekan) {
+          bgColor = Colors.green.shade100;
+          textColor = Colors.green.shade800;
+        }
+        BoxDecoration decoration = BoxDecoration(
+          color: bgColor,
+          shape: BoxShape.circle,
+          boxShadow: isToday
+              ? [BoxShadow(color: Colors.blue.withOpacity(0.25), blurRadius: 12, spreadRadius: 1, offset: Offset(0,2))]
+              : [],
+          border: isToday
+              ? Border.all(color: Colors.blue, width: 3)
+              : null,
+        );
+        Widget dayWidget = AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeInOut,
+          margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+          decoration: decoration,
+          width: 40,
+          height: 40,
+          child: _AnimatedTapEffect(
+            enabled: alasan.isNotEmpty,
+            onTap: alasan.isNotEmpty
+                ? () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('Keterangan Libur'),
+                        content: Text('${LiburHelper.getTanggalLengkap(DateTime(now.year, now.month, day))}\n\n$alasan'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Tutup'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                : null,
+            child: Center(
+              child: Text(
+                day.toString(),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: textColor,
+                  fontSize: isToday ? 18 : 15,
+                ),
+              ),
+            ),
+          ),
+        );
+        dayCells.add(Expanded(child: dayWidget));
+        // Jika sudah hari Minggu, wrap ke baris baru
+        if ((day + firstWeekday - 1) % 7 == 0 && day != daysInMonth) {
+          dayCells.add(const SizedBox(height: 0)); // Penanda baris baru
+        }
+      }
+
+      // Susun grid kalender
+      List<Widget> rows = [];
+      rows.add(Row(children: dayHeaders));
+      List<Widget> week = [];
+      int col = 0;
+      for (var cell in dayCells) {
+        if (cell is SizedBox) {
+          // Baris baru
+          rows.add(Row(children: week));
+          week = [];
+          col = 0;
+        } else {
+          week.add(cell);
+          col++;
+          if (col == 7) {
+            rows.add(Row(children: week));
+            week = [];
+            col = 0;
+          }
+        }
+      }
+      if (week.isNotEmpty) {
+        // Tambahkan baris terakhir
+        while (week.length < 7) {
+          week.add(const Expanded(child: SizedBox()));
+        }
+        rows.add(Row(children: week));
+      }
+
+      return Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Kalender Libur Bulan Ini', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...rows,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(width: 16, height: 16, decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(width: 4),
+                  const Text('Libur Akhir Pekan', style: TextStyle(fontSize: 12)),
+                  const SizedBox(width: 16),
+                  Container(width: 16, height: 16, decoration: BoxDecoration(color: Colors.red.shade100, borderRadius: BorderRadius.circular(4))),
+                  const SizedBox(width: 4),
+                  const Text('Libur Nasional', style: TextStyle(fontSize: 12)),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
     }
     
     return Container(
@@ -2650,31 +2815,29 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          calendarCard(),
+          const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.event_busy, color: Colors.blue),
+              const Icon(Icons.event_busy, color: Colors.red),
               const SizedBox(width: 8),
               Text(
-                '${hariLibur.length} Hari Libur pada bulan ini',
+                '${hariLibur.where((libur) => libur['alasan'].toString().toLowerCase().contains('libur nasional')).length} Libur Nasional pada bulan ini',
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue,
+                  color: Colors.red,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          
-          // List hari libur
-          ListView.builder(
+          // List hari libur nasional saja
+          ListView(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: hariLibur.length,
-            itemBuilder: (context, index) {
-              final libur = hariLibur[index];
+            children: hariLibur.where((libur) => libur['alasan'].toString().toLowerCase().contains('libur nasional')).map<Widget>((libur) {
               final tanggal = libur['tanggal'] as DateTime;
-              final alasan = libur['alasan'] as String;
-              
+              final alasan = libur['alasan'].toString();
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -2682,14 +2845,14 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.blue.withOpacity(0.2),
+                        color: Colors.red.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Text(
                         tanggal.day.toString(),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          color: Colors.red,
                         ),
                       ),
                     ),
@@ -2708,7 +2871,7 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                           style: const TextStyle(
                             fontSize: 12,
                             fontStyle: FontStyle.italic,
-                            color: Colors.blue,
+                            color: Colors.red,
                           ),
                         ),
                       ],
@@ -2716,9 +2879,49 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
                   ],
                 ),
               );
-            },
+            }).toList(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Widget animasi tap effect bulat
+class _AnimatedTapEffect extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final bool enabled;
+  const _AnimatedTapEffect({Key? key, required this.child, this.onTap, this.enabled = true}) : super(key: key);
+
+  @override
+  State<_AnimatedTapEffect> createState() => _AnimatedTapEffectState();
+}
+
+class _AnimatedTapEffectState extends State<_AnimatedTapEffect> with SingleTickerProviderStateMixin {
+  double _scale = 1.0;
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: widget.enabled ? (_) => setState(() => _scale = 0.92) : null,
+      onTapUp: widget.enabled ? (_) => setState(() => _scale = 1.0) : null,
+      onTapCancel: widget.enabled ? () => setState(() => _scale = 1.0) : null,
+      onTap: widget.enabled ? widget.onTap : null,
+      child: AnimatedScale(
+        scale: _scale,
+        duration: const Duration(milliseconds: 90),
+        curve: Curves.easeInOut,
+        child: Material(
+          color: Colors.transparent,
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            splashColor: Colors.blue.withOpacity(0.18),
+            highlightColor: Colors.blue.withOpacity(0.08),
+            onTap: widget.enabled ? widget.onTap : null,
+            child: widget.child,
+          ),
+        ),
       ),
     );
   }

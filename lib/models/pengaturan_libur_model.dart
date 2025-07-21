@@ -76,15 +76,15 @@ class LiburNasional {
 
   factory LiburNasional.fromJson(Map<String, dynamic> json) {
     return LiburNasional(
-      id: json['id'] ?? '',
-      nama: json['nama'] ?? '',
+      id: json['id']?.toString() ?? '',
+      nama: json['nama'] != null ? json['nama'].toString() : '',
       tanggalMulai: json['tanggalMulai'] != null 
           ? DateTime.parse(json['tanggalMulai']) 
           : DateTime.now(),
       tanggalSelesai: json['tanggalSelesai'] != null 
           ? DateTime.parse(json['tanggalSelesai']) 
           : DateTime.now(),
-      keterangan: json['keterangan'],
+      keterangan: json['keterangan'] != null ? json['keterangan'].toString() : null,
     );
   }
 
