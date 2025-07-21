@@ -15,6 +15,8 @@ import 'package:flutter/services.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import '../utils/saf_helper.dart';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 
 class RekapAbsensiScreen extends StatefulWidget {
   const RekapAbsensiScreen({Key? key}) : super(key: key);
@@ -1013,7 +1015,17 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Tampilkan dialog loading
       final loadingDialog = _showLoadingDialog('Mempersiapkan data...');
 
+      // Buat Excel dengan Sheet1 default
       final excel = Excel.createExcel();
+      print('📊 Sheet default yang dibuat: ${excel.sheets.keys.toList()}');
+      
+      // Dapatkan referensi ke Sheet1 dan rename menjadi "Rekap Absensi"
+      if (excel.sheets.containsKey('Sheet1')) {
+        excel.rename('Sheet1', 'Rekap Absensi');
+        print('🔄 Sheet1 direname menjadi "Rekap Absensi"');
+      }
+      
+      // Gunakan sheet "Rekap Absensi"
       final sheet = excel['Rekap Absensi'];
       
       // Tambahkan judul
@@ -1127,7 +1139,21 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       sheet.setColumnWidth(5, 15); // Jam Keluar
       sheet.setColumnWidth(6, 25); // Keterangan
       
-      // Simpan file Excel sebagai bytes
+      // Hapus semua sheet lain selain "Rekap Absensi"
+      final sheetNames = List<String>.from(excel.sheets.keys);
+      print('🔍 Sheet sebelum pembersihan: $sheetNames');
+      
+      for (final name in sheetNames) {
+        if (name != 'Rekap Absensi') {
+          excel.delete(name);
+          print('🗑️ Menghapus sheet: $name');
+        }
+      }
+      
+      // Verifikasi setelah pembersihan
+      print('✅ Sheet setelah pembersihan: ${excel.sheets.keys.toList()}');
+      
+      // Generate file Excel
       final excelData = excel.encode();
       if (excelData == null) {
         Navigator.pop(context); // Tutup dialog loading
@@ -1154,13 +1180,54 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: Text('Pilih Folder Baru'),
-                content: Text(
-                  'Anda akan diminta memilih folder untuk menyimpan file Excel.\n\n'
-                  'Pada Android 13 ke atas, silakan pilih folder Documents.'
+                title: Text(
+                  'Pilih Folder Baru',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
+                  ),
                 ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Anda akan diminta memilih folder untuk menyimpan file Excel.',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 16),
+                    Container(
+                      padding: EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: Colors.blue),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Pada Android 13 ke atas, silakan pilih folder Documents.',
+                              style: TextStyle(color: Colors.blue.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 actions: <Widget>[
-                  TextButton(
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                     child: Text('OK'),
                     onPressed: () {
                       Navigator.of(context).pop();
@@ -1183,13 +1250,54 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: Text('Pilih Folder Documents'),
-                  content: Text(
-                    'Anda akan diminta memilih folder untuk menyimpan file Excel.\n\n'
-                    'Pada Android 13 ke atas, silakan pilih folder Documents.'
+                  title: Text(
+                    'Pilih Folder Documents',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Anda akan diminta memilih folder untuk menyimpan file Excel.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                      SizedBox(height: 16),
+                      Container(
+                        padding: EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline, color: Colors.blue),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Pada Android 13 ke atas, silakan pilih folder Documents.',
+                                style: TextStyle(color: Colors.blue.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   actions: <Widget>[
-                    TextButton(
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                       child: Text('OK'),
                       onPressed: () {
                         Navigator.of(context).pop();
@@ -1212,7 +1320,19 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       String? uri = await _selectFolder();
       if (uri == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export dibatalkan')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Text('Export dibatalkan', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            backgroundColor: Colors.blue.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
         );
         return;
       }
@@ -1239,21 +1359,94 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text('Gagal Menyimpan File'),
-              content: Text(
-                'Gagal menyimpan file ke folder yang dipilih. Hal ini mungkin karena:\n\n'
-                '1. Izin akses folder sudah tidak valid\n'
-                '2. Folder yang dipilih tidak dapat ditulis\n\n'
-                'Apakah anda ingin memilih folder lain?'
+              title: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text(
+                    'Gagal Menyimpan File',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red.shade800,
+                    ),
+                  ),
+                ],
               ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Gagal menyimpan file ke folder yang dipilih. Hal ini mungkin karena:',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.red.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('•', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade800)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Izin akses folder sudah tidak valid', 
+                                style: TextStyle(color: Colors.red.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('•', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red.shade800)),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Folder yang dipilih tidak dapat ditulis', 
+                                style: TextStyle(color: Colors.red.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Apakah anda ingin memilih folder lain?',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  ),
+                ],
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               actions: <Widget>[
-                TextButton(
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: Text('Batal'),
                   onPressed: () {
                     Navigator.of(context).pop(false);
                   },
                 ),
-                TextButton(
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   child: Text('Pilih Folder Baru'),
                   onPressed: () {
                     Navigator.of(context).pop(true);
@@ -1269,7 +1462,19 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
           uri = await _selectFolder(forceNew: true);
           if (uri == null) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Export dibatalkan')),
+              SnackBar(
+                content: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.white),
+                    SizedBox(width: 12),
+                    Text('Export dibatalkan', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+                backgroundColor: Colors.blue.shade700,
+                behavior: SnackBarBehavior.floating,
+                margin: EdgeInsets.all(8),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
             );
             return;
           }
@@ -1296,30 +1501,155 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       }
       
       if (success) {
+        // Simpan file ke lokasi sementara untuk fitur buka dan bagikan
+        final tempFilePath = await _getExternalFilePath(uri, fileName);
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('File berhasil disimpan ke folder Documents'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'File berhasil disimpan',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            duration: Duration(seconds: 10),
+            // Menggunakan actionOverflowThreshold untuk menampilkan semua tombol
+            actionOverflowThreshold: 1,
             action: SnackBarAction(
-              label: 'Pilih Folder Lain',
+              label: 'PILIH FOLDER LAIN',
+              textColor: Colors.white,
               onPressed: () async {
                 final newUri = await _selectFolder(forceNew: true);
                 if (newUri != null) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Folder baru dipilih untuk ekspor berikutnya')),
+                    SnackBar(
+                      content: Text('Folder baru dipilih untuk ekspor berikutnya'),
+                      backgroundColor: Colors.blue.shade700,
+                      behavior: SnackBarBehavior.floating,
+                      margin: EdgeInsets.all(8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
                   );
                 }
               },
             ),
           ),
         );
+        
+        // Tampilkan dialog dengan tombol Bagikan dan Buka
+        if (tempFilePath != null) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) => AlertDialog(
+              title: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 10),
+                  Text(
+                    'File Excel Berhasil Disimpan',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green.shade800,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'File rekap absensi telah berhasil disimpan ke folder Documents. Anda dapat:',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                  SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: Icon(Icons.folder_open),
+                          label: Text('BUKA'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _openFile(tempFilePath);
+                          },
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          icon: Icon(Icons.share),
+                          label: Text('BAGIKAN'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _shareFile(tempFilePath);
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('TUTUP'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal export file setelah beberapa percobaan'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Gagal export file setelah beberapa percobaan',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            duration: Duration(seconds: 5),
           ),
         );
       }
@@ -1327,7 +1657,27 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
       // Pastikan dialog loading ditutup jika terjadi error
       Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Error: ${e.toString()}',
+                  style: TextStyle(fontSize: 16),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          duration: Duration(seconds: 10),
+        ),
       );
     }
   }
@@ -1341,13 +1691,228 @@ class _RekapAbsensiScreenState extends State<RekapAbsensiScreen> with SingleTick
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text(message),
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).primaryColor),
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              message,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
           ],
         ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
+  }
+
+  // Fungsi untuk membuka file Excel
+  Future<void> _openFile(String filePath) async {
+    try {
+      final result = await OpenFile.open(filePath);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Gagal membuka file: ${result.message}')),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(8),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Error: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+
+  // Fungsi untuk membagikan file Excel
+  Future<void> _shareFile(String filePath) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'Rekap Absensi ${DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate)}',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.white),
+              SizedBox(width: 12),
+              Expanded(child: Text('Gagal membagikan file: ${e.toString()}')),
+            ],
+          ),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      );
+    }
+  }
+  
+  // Fungsi untuk mendapatkan path file dari storage Android
+  Future<String?> _getExternalFilePath(String uri, String fileName) async {
+    try {
+      // Untuk Android 10 ke atas, kita perlu tempat sementara untuk membuka/bagikan file
+      final tempFile = await SAFHelper.getTempFile(fileName);
+      if (tempFile != null) {
+        return tempFile.path;
+      }
+      
+      // Jika tidak ada file sementara, buat file dari data yang sama
+      final tempDir = await getTemporaryDirectory();
+      final tempFilePath = '${tempDir.path}/$fileName';
+      
+      // Buat file Excel dari data
+      final excel = await _createExcelFile();
+      if (excel != null) {
+        final file = File(tempFilePath);
+        await file.writeAsBytes(excel);
+        return tempFilePath;
+      }
+      
+      return null;
+    } catch (e) {
+      print('Error getting file path: $e');
+      return null;
+    }
+  }
+  
+  // Fungsi untuk membuat file Excel
+  Future<Uint8List?> _createExcelFile() async {
+    try {
+      // Buat Excel dengan Sheet1 default
+      final excel = Excel.createExcel();
+      
+      // Dapatkan referensi ke Sheet1 dan rename menjadi "Rekap Absensi"
+      if (excel.sheets.containsKey('Sheet1')) {
+        excel.rename('Sheet1', 'Rekap Absensi');
+      }
+      
+      // Gunakan sheet "Rekap Absensi"
+      final sheet = excel['Rekap Absensi'];
+      
+      // Tambahkan judul
+      final monthName = DateFormat('MMMM yyyy', 'id_ID').format(_selectedDate);
+      sheet.merge(CellIndex.indexByString('A1'), CellIndex.indexByString('G1'));
+      final titleCell = sheet.cell(CellIndex.indexByString('A1'));
+      titleCell.value = TextCellValue('Rekap Absensi $monthName');
+      titleCell.cellStyle = CellStyle(
+        bold: true,
+        fontSize: 16,
+        horizontalAlign: HorizontalAlign.Center,
+      );
+      
+      // Tambahkan header
+      final headers = ['No', 'Tanggal', 'Nama Guru', 'Status', 'Jam Masuk', 'Jam Keluar', 'Keterangan'];
+      for (var i = 0; i < headers.length; i++) {
+        final cell = sheet.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 2));
+        cell.value = TextCellValue(headers[i]);
+        cell.cellStyle = CellStyle(
+          bold: true,
+          horizontalAlign: HorizontalAlign.Center,
+          verticalAlign: VerticalAlign.Center,
+        );
+      }
+      
+      // Tambahkan data absensi
+      int rowIndex = 3;
+      for (int i = 0; i < _filteredAbsensiData.length; i++) {
+        final absensi = _filteredAbsensiData[i];
+        
+        // Format data
+        final tanggal = absensi['tanggal'] != null
+            ? DateFormat('dd/MM/yyyy', 'id_ID').format(DateTime.parse(absensi['tanggal']))
+            : '-';
+            
+        final guruNama = _getGuruName(absensi['guruId']?.toString());
+        final status = absensi['status']?.toString().toUpperCase() ?? 'HADIR';
+        
+        String jamMasuk = '-';
+        if (absensi['jamMasuk'] != null) {
+          try {
+            final jamMasukDate = DateTime.parse(absensi['jamMasuk']);
+            jamMasuk = DateFormat('HH:mm:ss', 'id_ID').format(jamMasukDate);
+          } catch (e) {
+            jamMasuk = absensi['jamMasuk'];
+          }
+        }
+        
+        String jamKeluar = '-';
+        if (absensi['jamKeluar'] != null) {
+          try {
+            final jamKeluarDate = DateTime.parse(absensi['jamKeluar']);
+            jamKeluar = DateFormat('HH:mm:ss', 'id_ID').format(jamKeluarDate);
+          } catch (e) {
+            jamKeluar = absensi['jamKeluar'];
+          }
+        }
+        
+        final keterangan = absensi['keterangan']?.toString() ?? '-';
+        
+        // Tambahkan ke Excel
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIndex)).value = IntCellValue(i + 1);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: rowIndex)).value = TextCellValue(tanggal);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: rowIndex)).value = TextCellValue(guruNama);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: rowIndex)).value = TextCellValue(status);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: rowIndex)).value = TextCellValue(jamMasuk);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: rowIndex)).value = TextCellValue(jamKeluar);
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: rowIndex)).value = TextCellValue(keterangan);
+        
+        rowIndex++;
+      }
+      
+      // Hapus semua sheet lain selain "Rekap Absensi"
+      final sheetNames = List<String>.from(excel.sheets.keys);
+      print('🔍 Sheet sebelum pembersihan (createExcel): $sheetNames');
+      
+      for (final name in sheetNames) {
+        if (name != 'Rekap Absensi') {
+          excel.delete(name);
+          print('🗑️ Menghapus sheet: $name');
+        }
+      }
+      
+      // Verifikasi setelah pembersihan
+      print('✅ Sheet setelah pembersihan (createExcel): ${excel.sheets.keys.toList()}');
+      
+      // Generate file Excel
+      final excelBytes = excel.encode();
+      if (excelBytes == null) {
+        return null;
+      }
+      
+      return Uint8List.fromList(excelBytes);
+    } catch (e) {
+      print('Error creating Excel file: $e');
+      return null;
+    }
   }
 
   @override
