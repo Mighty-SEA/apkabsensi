@@ -48,7 +48,7 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
     });
     
     try {
-      // Ambil pengaturan akhir pekan
+      // Ambil pengaturan hari libur
       final akhirPekanResult = await _apiService.getAkhirPekanSettings();
       if (akhirPekanResult['success']) {
         setState(() {
@@ -56,7 +56,7 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
         });
       } else {
         setState(() {
-          _error = akhirPekanResult['message'] ?? 'Gagal memuat pengaturan akhir pekan';
+          _error = akhirPekanResult['message'] ?? 'Gagal memuat pengaturan hari libur';
         });
       }
       
@@ -86,7 +86,7 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
     }
   }
   
-  // Simpan pengaturan akhir pekan
+  // Simpan pengaturan hari libur
   Future<void> _saveAkhirPekanSettings() async {
     setState(() {
       _isLoading = true;
@@ -97,7 +97,7 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
       
       if (result['success']) {
         Flushbar(
-          message: 'Pengaturan akhir pekan berhasil disimpan',
+          message: 'Pengaturan hari libur berhasil disimpan',
           duration: const Duration(seconds: 3),
           backgroundColor: Colors.green,
           flushbarPosition: FlushbarPosition.TOP,
@@ -255,6 +255,7 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
   
   // Dialog tambah/edit libur nasional
   Future<void> _showLiburNasionalDialog({LiburNasional? libur}) async {
+    final theme = Theme.of(context);
     final isEditing = libur != null;
     
     final TextEditingController namaController = TextEditingController(
@@ -275,142 +276,303 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) {
-          return AlertDialog(
-            title: Text(isEditing ? 'Edit Libur Nasional' : 'Tambah Libur Nasional'),
-            content: SingleChildScrollView(
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Header
+                  Row(
+                    children: [
+                      Icon(
+                        isEditing ? Icons.edit_calendar : Icons.add_circle,
+                        color: theme.colorScheme.primary,
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        isEditing ? 'Edit Libur Nasional' : 'Tambah Libur Nasional',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  
                   // Nama Libur
                   TextField(
                     controller: namaController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Nama Libur *',
                       hintText: 'Contoh: Hari Kemerdekaan',
+                      prefixIcon: const Icon(Icons.label_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: theme.colorScheme.primary),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   
                   // Tanggal Mulai
-                  Row(
-                    children: [
-                      const Text('Tanggal Mulai:'),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(
-                            DateFormat('dd MMM yyyy').format(tanggalMulai),
-                          ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: tanggalMulai,
-                              firstDate: DateTime(2020),
-                              lastDate: DateTime(2050),
-                            );
-                            
-                            if (picked != null) {
-                              setState(() {
-                                tanggalMulai = picked;
-                                // Jika tanggal mulai > tanggal selesai, sesuaikan tanggal selesai
-                                if (tanggalMulai.isAfter(tanggalSelesai)) {
-                                  tanggalSelesai = tanggalMulai;
-                                }
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Tanggal Mulai',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: tanggalMulai,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime(2050),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: ColorScheme.light(
+                                primary: theme.colorScheme.primary,
+                                onPrimary: Colors.white,
+                                surface: Colors.white,
+                                onSurface: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      
+                      if (picked != null) {
+                        setState(() {
+                          tanggalMulai = picked;
+                          // Jika tanggal mulai > tanggal selesai, sesuaikan tanggal selesai
+                          if (tanggalMulai.isAfter(tanggalSelesai)) {
+                            tanggalSelesai = tanggalMulai;
+                          }
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            DateFormat('dd MMMM yyyy').format(tanggalMulai),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   
                   // Tanggal Selesai
-                  Row(
-                    children: [
-                      const Text('Tanggal Selesai:'),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          icon: const Icon(Icons.calendar_today, size: 16),
-                          label: Text(
-                            DateFormat('dd MMM yyyy').format(tanggalSelesai),
-                          ),
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: context,
-                              initialDate: tanggalSelesai,
-                              firstDate: tanggalMulai, // Minimal tanggal mulai
-                              lastDate: DateTime(2050),
-                            );
-                            
-                            if (picked != null) {
-                              setState(() {
-                                tanggalSelesai = picked;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Tanggal Selesai',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: theme.colorScheme.onSurface.withOpacity(0.8),
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: tanggalSelesai,
+                        firstDate: tanggalMulai,
+                        lastDate: DateTime(2050),
+                        builder: (context, child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              colorScheme: ColorScheme.light(
+                                primary: theme.colorScheme.primary,
+                                onPrimary: Colors.white,
+                                surface: Colors.white,
+                                onSurface: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      
+                      if (picked != null) {
+                        setState(() {
+                          tanggalSelesai = picked;
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade400),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 20,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            DateFormat('dd MMMM yyyy').format(tanggalSelesai),
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.arrow_drop_down,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   
                   // Keterangan
                   TextField(
                     controller: keteranganController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Keterangan (Opsional)',
                       hintText: 'Tambahan informasi',
+                      prefixIcon: const Icon(Icons.description_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: theme.colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
                     ),
                     maxLines: 2,
                   ),
                   
+                  // Periode info
                   if (tanggalMulai != tanggalSelesai)
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
-                      child: Text(
-                        'Periode: ${DateFormat('d').format(tanggalMulai)} - ${DateFormat('d MMM yyyy').format(tanggalSelesai)}',
-                        style: const TextStyle(
-                          fontStyle: FontStyle.italic,
-                          color: Colors.blue,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Periode: ${DateFormat('d').format(tanggalMulai)} - ${DateFormat('d MMM yyyy').format(tanggalSelesai)}',
+                                style: TextStyle(
+                                  fontStyle: FontStyle.italic,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(
+                          'Batal',
+                          style: TextStyle(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton(
+                        onPressed: () {
+                          if (namaController.text.trim().isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Nama libur tidak boleh kosong')),
+                            );
+                            return;
+                          }
+                          
+                          final newLibur = LiburNasional(
+                            id: isEditing ? libur.id : const Uuid().v4(),
+                            nama: namaController.text.trim(),
+                            tanggalMulai: tanggalMulai,
+                            tanggalSelesai: tanggalSelesai,
+                            keterangan: keteranganController.text.trim().isNotEmpty 
+                                ? keteranganController.text.trim() 
+                                : null,
+                          );
+                          
+                          Navigator.of(context).pop(newLibur);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          isEditing ? 'Simpan' : 'Tambah',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (namaController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Nama libur tidak boleh kosong')),
-                    );
-                    return;
-                  }
-                  
-                  final newLibur = LiburNasional(
-                    id: isEditing ? libur.id : const Uuid().v4(),
-                    nama: namaController.text.trim(),
-                    tanggalMulai: tanggalMulai,
-                    tanggalSelesai: tanggalSelesai,
-                    keterangan: keteranganController.text.trim().isNotEmpty 
-                        ? keteranganController.text.trim() 
-                        : null,
-                  );
-                  
-                  Navigator.of(context).pop(newLibur);
-                },
-                child: Text(isEditing ? 'Simpan' : 'Tambah'),
-              ),
-            ],
           );
         },
       ),
@@ -425,30 +587,52 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
     });
   }
   
-  // Tab Pengaturan Akhir Pekan
+  // Tab Pengaturan Hari Libur
   Widget _buildAkhirPekanTab() {
+    final theme = Theme.of(context);
+    
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Pilih Hari Libur Akhir Pekan',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pada hari yang dipilih, guru tidak dapat melakukan absensi',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.info_outline, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Pilih Hari Libur',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Pada hari yang dipilih, guru tidak dapat melakukan absensi',
+                  style: TextStyle(fontSize: 14),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           
           // Daftar hari
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 3,
+            shadowColor: Colors.black26,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Column(
               children: [
                 _buildDayCheckbox('Senin', _akhirPekan.senin, (value) {
@@ -560,17 +744,26 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
               onPressed: _isLoading ? null : _saveAkhirPekanSettings,
               icon: _isLoading 
                   ? const SizedBox(
-                      width: 16, 
-                      height: 16, 
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      width: 20, 
+                      height: 20, 
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.save),
-              label: const Text('Simpan Pengaturan'),
+              label: const Text(
+                'Simpan Pengaturan',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                backgroundColor: theme.colorScheme.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 3,
               ),
             ),
           ),
@@ -581,50 +774,78 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
   
   // Tab Libur Nasional
   Widget _buildLiburNasionalTab() {
+    final theme = Theme.of(context);
+    
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Daftar Libur Nasional',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: _isLoading ? null : () => _showLiburNasionalDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Tambah'),
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.event_note, color: theme.colorScheme.primary),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Daftar Libur Nasional',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Pada hari libur nasional, guru tidak dapat melakukan absensi',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Pada hari libur nasional, guru tidak dapat melakukan absensi',
-            style: TextStyle(fontSize: 14, color: Colors.grey),
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : () => _showLiburNasionalDialog(),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Tambah'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? Center(
+                    child: CircularProgressIndicator(
+                      color: theme.colorScheme.primary,
+                    ),
+                  )
                 : _liburNasional.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.event_busy, 
-                                size: 80, color: Colors.grey[400]),
+                                size: 100, color: Colors.grey[300]),
                             const SizedBox(height: 16),
                             Text(
                               'Belum ada data libur nasional',
@@ -641,70 +862,113 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
                         itemBuilder: (context, index) {
                           final libur = _liburNasional[index];
                           return Card(
+                            elevation: 2,
                             margin: const EdgeInsets.only(bottom: 12),
+                            shadowColor: Colors.black26,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: ListTile(
-                              title: Text(
-                                libur.nama,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              child: Row(
                                 children: [
-                                  const SizedBox(height: 4),
-                                  // Jika tanggal mulai dan selesai sama
-                                  if (libur.tanggalMulai.year == libur.tanggalSelesai.year &&
-                                      libur.tanggalMulai.month == libur.tanggalSelesai.month &&
-                                      libur.tanggalMulai.day == libur.tanggalSelesai.day)
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.event, size: 14, color: Colors.blue),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          DateFormat('dd MMM yyyy').format(libur.tanggalMulai),
-                                          style: const TextStyle(color: Colors.blue),
-                                        ),
-                                      ],
-                                    )
-                                  // Jika periode
-                                  else
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.date_range, size: 14, color: Colors.blue),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${DateFormat('dd MMM').format(libur.tanggalMulai)} - ${DateFormat('dd MMM yyyy').format(libur.tanggalSelesai)}',
-                                          style: const TextStyle(color: Colors.blue),
-                                        ),
-                                      ],
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
-                                  
-                                  if (libur.keterangan != null && libur.keterangan!.isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        libur.keterangan!,
-                                        style: TextStyle(color: Colors.grey[600]),
-                                      ),
+                                    child: Icon(
+                                      Icons.event,
+                                      color: theme.colorScheme.primary,
+                                      size: 28,
                                     ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.orange),
-                                    onPressed: () => _showLiburNasionalDialog(libur: libur),
-                                    tooltip: 'Edit',
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => _confirmDeleteLibur(libur),
-                                    tooltip: 'Hapus',
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          libur.nama,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        // Jika tanggal mulai dan selesai sama
+                                        if (libur.tanggalMulai.year == libur.tanggalSelesai.year &&
+                                            libur.tanggalMulai.month == libur.tanggalSelesai.month &&
+                                            libur.tanggalMulai.day == libur.tanggalSelesai.day)
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.calendar_today, 
+                                                size: 14, 
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                DateFormat('dd MMM yyyy').format(libur.tanggalMulai),
+                                                style: TextStyle(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        // Jika periode
+                                        else
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.date_range, 
+                                                size: 14, 
+                                                color: theme.colorScheme.primary,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${DateFormat('dd MMM').format(libur.tanggalMulai)} - ${DateFormat('dd MMM yyyy').format(libur.tanggalSelesai)}',
+                                                style: TextStyle(
+                                                  color: theme.colorScheme.primary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        
+                                        if (libur.keterangan != null && libur.keterangan!.isNotEmpty)
+                                          Padding(
+                                            padding: const EdgeInsets.only(top: 4),
+                                            child: Text(
+                                              libur.keterangan!,
+                                              style: TextStyle(color: Colors.grey[600]),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.edit_outlined,
+                                          color: theme.colorScheme.secondary,
+                                        ),
+                                        onPressed: () => _showLiburNasionalDialog(libur: libur),
+                                        tooltip: 'Edit',
+                                      ),
+                                      IconButton(
+                                        icon: Icon(
+                                          Icons.delete_outline,
+                                          color: theme.colorScheme.error,
+                                        ),
+                                        onPressed: () => _confirmDeleteLibur(libur),
+                                        tooltip: 'Hapus',
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -718,41 +982,24 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
     );
   }
   
-  // Konfirmasi hapus libur nasional
-  Future<void> _confirmDeleteLibur(LiburNasional libur) async {
-    return showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Hapus Libur Nasional'),
-        content: Text('Apakah Anda yakin ingin menghapus "${libur.nama}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _deleteLiburNasional(libur.id);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
-    );
-  }
-  
   Widget _buildDayCheckbox(String day, bool isChecked, Function(bool?) onChanged) {
     return CheckboxListTile(
-      title: Text(day),
+      title: Text(
+        day, 
+        style: TextStyle(
+          fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
       value: isChecked,
       onChanged: onChanged as void Function(bool?),
       controlAffinity: ListTileControlAffinity.trailing,
-      activeColor: Theme.of(context).primaryColor,
+      activeColor: Theme.of(context).colorScheme.primary,
+      checkColor: Colors.white,
+      dense: true,
+      secondary: Icon(
+        isChecked ? Icons.event_busy : Icons.event_available,
+        color: isChecked ? Theme.of(context).colorScheme.primary : Colors.grey,
+      ),
     );
   }
   
@@ -762,19 +1009,26 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengaturan Hari Libur'),
+        elevation: 0,
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
-            Tab(text: 'Akhir Pekan'),
+            Tab(text: 'Hari Libur'),
             Tab(text: 'Libur Nasional'),
           ],
-          labelColor: Theme.of(context).primaryColor,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Theme.of(context).primaryColor,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white.withOpacity(0.7),
+          indicatorColor: Colors.white,
           indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.tab,
+          dividerColor: Colors.transparent,
         ),
       ),
       body: _error.isNotEmpty
@@ -785,12 +1039,21 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
                   Text(
                     _error,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: theme.colorScheme.error),
                   ),
                   const SizedBox(height: 16),
-                  ElevatedButton(
+                  ElevatedButton.icon(
                     onPressed: _loadData,
-                    child: const Text('Coba Lagi'),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Coba Lagi'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -802,6 +1065,42 @@ class _PengaturanLiburScreenState extends State<PengaturanLiburScreen> with Sing
                 _buildLiburNasionalTab(),
               ],
             ),
+    );
+  }
+  
+  // Konfirmasi hapus libur nasional
+  Future<void> _confirmDeleteLibur(LiburNasional libur) async {
+    final theme = Theme.of(context);
+    
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Hapus Libur Nasional',
+          style: TextStyle(color: theme.colorScheme.error),
+        ),
+        content: Text('Apakah Anda yakin ingin menghapus "${libur.nama}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _deleteLiburNasional(libur.id);
+            },
+            icon: const Icon(Icons.delete),
+            label: const Text('Hapus'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 } 

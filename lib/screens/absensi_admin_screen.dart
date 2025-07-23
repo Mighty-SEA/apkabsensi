@@ -1159,7 +1159,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
         title: const Text('Absensi Guru'),
         centerTitle: false,
         actions: [
-          // Tombol Pengaturan Akhir Pekan
+          // Tombol Pengaturan Hari Libur
           IconButton(
             icon: const Icon(Icons.weekend),
             onPressed: () {
@@ -1172,22 +1172,7 @@ class _AbsensiAdminScreenState extends State<AbsensiAdminScreen> with AutomaticK
                 )
               ).then((_) => _loadData());
             },
-            tooltip: 'Atur Akhir Pekan',
-          ),
-          // Tombol Pengaturan Libur Nasional
-          IconButton(
-            icon: const Icon(Icons.event_note),
-            onPressed: () {
-              Navigator.push(
-                context, 
-                MaterialPageRoute(
-                  builder: (context) => const PengaturanLiburScreen(
-                    initialTabIndex: 1, // Tab Libur Nasional
-                  ),
-                )
-              ).then((_) => _loadData());
-            },
-            tooltip: 'Atur Libur Nasional',
+            tooltip: 'Atur Libur',
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
